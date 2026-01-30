@@ -112,11 +112,11 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
     >
       <CardContent className="p-0">
         {/* Wine Image Area - Vivino Style */}
-        <div className="relative flex flex-col items-center pt-6 pb-4 px-4 bg-gradient-to-b from-muted/30 to-transparent">
-          {/* Type Badge - Top Left */}
+        <div className="relative flex flex-col items-center pt-8 pb-4 px-4 bg-gradient-to-b from-muted/30 to-transparent">
+          {/* Type Badge - Top Left with high z-index */}
           {wine.type && (
             <Badge
-              className={`absolute left-2 top-2 text-xs ${typeColors[wine.type] || "bg-muted"}`}
+              className={`absolute left-2 top-2 z-10 text-xs ${typeColors[wine.type] || "bg-muted"}`}
               data-testid={`badge-type-${wine.id}`}
             >
               {typeLabels[wine.type] || wine.type}
@@ -124,24 +124,19 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
           )}
           
           {/* Wine Bottle Image */}
-          <div className="relative h-40 w-24 flex items-end justify-center">
+          <div className="relative h-36 w-full flex items-end justify-center">
             <img 
               src={imageUrl} 
               alt={wine.nameKr || wine.nameEn || "Wine"} 
-              className="h-full w-auto object-contain"
+              className="h-full w-auto object-contain max-w-[80%]"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
               }}
             />
             <div className={`hidden absolute inset-0 flex items-end justify-center`}>
-              <div className={`h-36 w-14 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-lg relative`}>
+              <div className={`h-32 w-12 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-lg relative`}>
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-4 bg-amber-800 rounded-t-sm" />
-                {wine.year && wine.year !== "non-vintage" && (
-                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[8px] text-white/80 font-medium">
-                    {wine.year}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -164,18 +159,20 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
             {wine.nation}{wine.region ? ` · ${wine.region.split(" ")[0]}` : ""}
           </p>
 
-          {/* Rating - Vivino Style */}
-          {rating && (
-            <div className="flex items-center gap-2 py-2">
-              <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-1">
-                <Star className="h-4 w-4 fill-primary text-primary" />
-                <span className="text-sm font-bold text-primary">{rating}</span>
+          {/* Rating - Vivino Style (fixed height for consistent card layout) */}
+          <div className="h-10 flex items-center">
+            {rating ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-1">
+                  <Star className="h-4 w-4 fill-primary text-primary" />
+                  <span className="text-sm font-bold text-primary">{rating}</span>
+                </div>
+                <span className="text-xs text-muted-foreground">평점</span>
               </div>
-              <span className="text-xs text-muted-foreground">
-                평점
-              </span>
-            </div>
-          )}
+            ) : (
+              <span className="text-xs text-muted-foreground">평점 없음</span>
+            )}
+          </div>
 
           {/* Price & Add Button */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
