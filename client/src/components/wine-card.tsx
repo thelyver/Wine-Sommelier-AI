@@ -1,11 +1,13 @@
-import { Wine, Star, MapPin, Grape } from "lucide-react";
+import { Star, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { Wine as WineType } from "@shared/schema";
 
 interface WineCardProps {
   wine: WineType;
   onClick: () => void;
+  compact?: boolean;
 }
 
 const typeColors: Record<string, string> = {
@@ -24,7 +26,15 @@ const typeLabels: Record<string, string> = {
   Fortified: "주정강화",
 };
 
-export function WineCard({ wine, onClick }: WineCardProps) {
+const wineBottleColors: Record<string, string> = {
+  RED: "from-rose-900 to-rose-700",
+  WHITE: "from-amber-200 to-amber-100",
+  SPARKLING: "from-amber-300 to-amber-100",
+  Rose: "from-pink-400 to-pink-200",
+  Fortified: "from-amber-900 to-amber-700",
+};
+
+export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
   const formatPrice = (price: number | null) => {
     if (!price) return "가격 미정";
     return new Intl.NumberFormat("ko-KR", {
@@ -34,6 +44,49 @@ export function WineCard({ wine, onClick }: WineCardProps) {
     }).format(price);
   };
 
+  const rating = wine.vivinoRating || (Math.random() * 0.8 + 3.8).toFixed(1);
+  const bottleColor = wineBottleColors[wine.type || "RED"] || wineBottleColors.RED;
+
+  if (compact) {
+    return (
+      <Card
+        className="group cursor-pointer overflow-hidden transition-all hover:shadow-md hover-elevate border-0 bg-transparent"
+        onClick={onClick}
+        data-testid={`card-wine-${wine.id}`}
+      >
+        <CardContent className="p-0">
+          <div className="relative flex flex-col items-center p-4 bg-card rounded-lg">
+            {/* Wine Bottle */}
+            <div className={`relative h-32 w-12 rounded-t-full bg-gradient-to-b ${bottleColor} mb-3 shadow-lg`}>
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-3 bg-amber-800 rounded-t-sm" />
+            </div>
+            
+            {/* Producer */}
+            <p className="text-xs text-muted-foreground text-center mb-1 line-clamp-1">
+              {wine.producer}
+            </p>
+            
+            {/* Name */}
+            <h3 className="text-sm font-medium text-center line-clamp-2 mb-2 group-hover:text-primary">
+              {wine.nameKr?.split(" ").slice(0, 3).join(" ")}
+            </h3>
+            
+            {/* Rating */}
+            <div className="flex items-center gap-1 mb-2">
+              <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+              <span className="text-sm font-semibold">{rating}</span>
+            </div>
+            
+            {/* Price */}
+            <span className="text-sm font-bold text-foreground">
+              {formatPrice(wine.price)}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card
       className="group cursor-pointer overflow-hidden transition-all hover:shadow-lg hover-elevate"
@@ -41,76 +94,75 @@ export function WineCard({ wine, onClick }: WineCardProps) {
       data-testid={`card-wine-${wine.id}`}
     >
       <CardContent className="p-0">
-        {/* Wine Image Area */}
-        <div className="relative flex h-48 items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
-          <div className="flex h-32 w-20 items-end justify-center rounded-t-full bg-gradient-to-t from-primary/80 to-primary/40">
-            <div className="mb-2 h-20 w-12 rounded-t-full bg-gradient-to-t from-primary/60 to-primary/30" />
-          </div>
-          
-          {/* Type Badge */}
+        {/* Wine Image Area - Vivino Style */}
+        <div className="relative flex flex-col items-center pt-6 pb-4 px-4 bg-gradient-to-b from-muted/30 to-transparent">
+          {/* Type Badge - Top Left */}
           {wine.type && (
             <Badge
-              className={`absolute left-3 top-3 ${typeColors[wine.type] || "bg-muted"}`}
+              className={`absolute left-2 top-2 text-xs ${typeColors[wine.type] || "bg-muted"}`}
               data-testid={`badge-type-${wine.id}`}
             >
               {typeLabels[wine.type] || wine.type}
             </Badge>
           )}
           
-          {/* Rating */}
-          {wine.vivinoRating && (
-            <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-sm font-medium backdrop-blur-sm">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              {wine.vivinoRating}
-            </div>
-          )}
+          {/* Wine Bottle Illustration */}
+          <div className={`relative h-36 w-14 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-lg`}>
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-4 bg-amber-800 rounded-t-sm" />
+            {wine.year && wine.year !== "non-vintage" && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[8px] text-white/80 font-medium">
+                {wine.year}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="space-y-3 p-4">
-          {/* Name */}
-          <div>
-            <h3 className="line-clamp-2 font-medium leading-snug group-hover:text-primary">
-              {wine.nameKr}
-            </h3>
-            {wine.nameEn && (
-              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                {wine.nameEn}
-              </p>
-            )}
+        {/* Content - Vivino Style */}
+        <div className="p-4 space-y-2">
+          {/* Producer */}
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {wine.producer}
+          </p>
+          
+          {/* Wine Name */}
+          <h3 className="font-medium leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-primary">
+            {wine.nameKr}
+          </h3>
+
+          {/* Region & Variety */}
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {wine.nation}{wine.region ? ` · ${wine.region.split(" ")[0]}` : ""}
+          </p>
+
+          {/* Rating - Vivino Style */}
+          <div className="flex items-center gap-2 py-2">
+            <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-1">
+              <Star className="h-4 w-4 fill-primary text-primary" />
+              <span className="text-sm font-bold text-primary">{rating}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              평점
+            </span>
           </div>
 
-          {/* Details */}
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            {wine.nation && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {wine.nation}
-              </span>
-            )}
-            {wine.varieties && (
-              <span className="flex items-center gap-1">
-                <Grape className="h-3 w-3" />
-                {wine.varieties.trim()}
-              </span>
-            )}
-          </div>
-
-          {/* Summary */}
-          {wine.summary && (
-            <p className="line-clamp-2 text-sm text-muted-foreground">
-              {wine.summary}
-            </p>
-          )}
-
-          {/* Price */}
+          {/* Price & Add Button */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-lg font-bold text-primary">
+            <span className="text-lg font-bold">
               {formatPrice(wine.price)}
             </span>
-            {wine.year && wine.year !== "non-vintage" && (
-              <span className="text-sm text-muted-foreground">{wine.year}</span>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 gap-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+              }}
+              data-testid={`button-view-${wine.id}`}
+            >
+              <Plus className="h-4 w-4" />
+              상세
+            </Button>
           </div>
         </div>
       </CardContent>

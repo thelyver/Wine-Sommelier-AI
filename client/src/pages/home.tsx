@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Wine, MessageSquare, Search, Filter, X, Sparkles } from "lucide-react";
+import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,14 @@ import { SommelierChat } from "@/components/sommelier-chat";
 import { WineDetailModal } from "@/components/wine-detail-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Wine as WineType } from "@shared/schema";
+
+const categoryPills = [
+  { id: "RED", label: "레드 와인", color: "bg-rose-600 hover:bg-rose-700 text-white" },
+  { id: "WHITE", label: "화이트 와인", color: "bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900 dark:hover:bg-amber-800 dark:text-amber-100" },
+  { id: "SPARKLING", label: "스파클링", color: "bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-900 dark:hover:bg-cyan-800 dark:text-cyan-100" },
+  { id: "Rose", label: "로제", color: "bg-pink-200 hover:bg-pink-300 text-pink-800 dark:bg-pink-900 dark:hover:bg-pink-800 dark:text-pink-100" },
+  { id: "Fortified", label: "주정강화", color: "bg-purple-600 hover:bg-purple-700 text-white" },
+];
 
 export default function Home() {
   const [showChat, setShowChat] = useState(false);
@@ -39,6 +47,15 @@ export default function Home() {
     },
   });
 
+  const { data: featuredWines = [] } = useQuery<WineType[]>({
+    queryKey: ["/api/wines", "featured"],
+    queryFn: async () => {
+      const res = await fetch(`/api/wines?limit=10`);
+      if (!res.ok) throw new Error("Failed to fetch wines");
+      return res.json();
+    },
+  });
+
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   const clearFilters = () => {
@@ -46,27 +63,47 @@ export default function Home() {
     setSearchQuery("");
   };
 
+  const handleCategoryClick = (typeId: string) => {
+    if (filters.type === typeId) {
+      setFilters((prev) => ({ ...prev, type: undefined }));
+    } else {
+      setFilters((prev) => ({ ...prev, type: typeId }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-sidebar text-sidebar-foreground">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
+      {/* Header - Vivino Style */}
+      <header className="sticky top-0 z-50 border-b border-border bg-background">
+        <div className="container mx-auto px-4">
+          <div className="flex h-16 items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
                 <Wine className="h-5 w-5 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">AI Wine Sommelier</h1>
-                <p className="text-xs text-sidebar-foreground/70">Your Personal Wine Expert</p>
+              <span className="text-xl font-bold text-foreground">와인소믈리에</span>
+            </div>
+
+            {/* Search Bar - Center */}
+            <div className="hidden flex-1 max-w-lg md:flex">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="와인 이름, 품종, 국가로 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 w-full pl-10 bg-muted/50 border-0"
+                  data-testid="input-search"
+                />
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <ThemeToggle />
               <Button
                 onClick={() => setShowChat(!showChat)}
                 variant={showChat ? "default" : "outline"}
+                size="sm"
                 className="gap-2"
                 data-testid="button-toggle-chat"
               >
@@ -81,35 +118,100 @@ export default function Home() {
       <div className="flex">
         {/* Main Content */}
         <main className={`flex-1 transition-all duration-300 ${showChat ? "mr-96" : ""}`}>
-          {/* Hero Section */}
-          <section className="relative overflow-hidden bg-gradient-to-br from-sidebar via-sidebar to-primary/20 py-16 text-sidebar-foreground">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-            <div className="container relative mx-auto px-4 text-center">
-              <h2 className="mb-4 font-serif text-4xl font-bold md:text-5xl">
-                당신만을 위한 와인 추천
-              </h2>
-              <p className="mx-auto mb-8 max-w-2xl text-lg text-sidebar-foreground/80">
-                AI 소믈리에가 상황과 취향에 맞는 완벽한 와인을 추천해드립니다
-              </p>
-              
-              {/* Search Bar */}
-              <div className="mx-auto flex max-w-xl gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="와인 이름, 품종, 국가로 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-12 pl-10 bg-background/95 text-foreground border-0"
-                    data-testid="input-search"
-                  />
+          {/* Hero Banner - wine.com Style */}
+          <section className="relative bg-gradient-to-r from-primary to-primary/80 py-12 text-primary-foreground">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between">
+                <div className="max-w-xl">
+                  <h1 className="mb-3 text-3xl font-bold md:text-4xl">
+                    AI가 추천하는 와인
+                  </h1>
+                  <p className="mb-6 text-lg text-primary-foreground/90">
+                    상황과 취향에 맞는 완벽한 와인을 찾아보세요
+                  </p>
+                  <Button 
+                    size="lg" 
+                    variant="secondary"
+                    onClick={() => setShowChat(true)}
+                    className="gap-2"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    AI 소믈리에와 대화하기
+                  </Button>
                 </div>
-                <Button size="lg" className="h-12 px-6" data-testid="button-search">
-                  검색
-                </Button>
+                <div className="hidden lg:block">
+                  <div className="flex h-40 w-32 items-end justify-center rounded-t-full bg-gradient-to-t from-primary-foreground/20 to-transparent">
+                    <div className="mb-4 h-28 w-16 rounded-t-full bg-gradient-to-t from-primary-foreground/30 to-transparent" />
+                  </div>
+                </div>
               </div>
             </div>
           </section>
+
+          {/* Category Pills - wine.com Style */}
+          <section className="border-b border-border bg-background py-4">
+            <div className="container mx-auto px-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {categoryPills.map((cat) => (
+                  <Button
+                    key={cat.id}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCategoryClick(cat.id)}
+                    className={`rounded-full px-4 ${
+                      filters.type === cat.id 
+                        ? cat.color + " ring-2 ring-offset-2 ring-primary" 
+                        : cat.color
+                    }`}
+                    data-testid={`button-category-${cat.id}`}
+                  >
+                    {cat.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Mobile Search */}
+          <section className="border-b border-border bg-background py-3 md:hidden">
+            <div className="container mx-auto px-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="와인 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 pl-10 bg-muted/50 border-0"
+                  data-testid="input-search-mobile"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Trending Section - Vivino Style */}
+          {!filters.type && !searchQuery && featuredWines.length > 0 && (
+            <section className="py-8 border-b border-border">
+              <div className="container mx-auto px-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xl font-bold">인기 와인</h2>
+                  <Button variant="ghost" size="sm" className="gap-1 text-primary">
+                    전체 보기 <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                  {featuredWines.slice(0, 8).map((wine) => (
+                    <div key={wine.id} className="flex-none w-56">
+                      <WineCard
+                        wine={wine}
+                        onClick={() => setSelectedWine(wine)}
+                        compact
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Filters Section */}
           <section className="border-b border-border bg-card py-4">
@@ -133,24 +235,24 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Wine List */}
+          {/* Wine List - Vivino Grid Style */}
           <section className="py-8">
             <div className="container mx-auto px-4">
               <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-semibold">와인 목록</h3>
-                  <Badge variant="secondary" data-testid="text-wine-count">
-                    {wines.length}개
-                  </Badge>
-                </div>
+                <h2 className="text-xl font-bold">
+                  {filters.type ? `${categoryPills.find(c => c.id === filters.type)?.label || filters.type}` : "전체 와인"}
+                </h2>
+                <Badge variant="secondary" data-testid="text-wine-count">
+                  {wines.length}개
+                </Badge>
               </div>
 
               {isLoading ? (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {Array.from({ length: 8 }).map((_, i) => (
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {Array.from({ length: 10 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-80 animate-pulse rounded-lg bg-muted"
+                      className="aspect-[3/4] animate-pulse rounded-lg bg-muted"
                     />
                   ))}
                 </div>
@@ -170,7 +272,7 @@ export default function Home() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {wines.map((wine) => (
                     <WineCard
                       key={wine.id}
