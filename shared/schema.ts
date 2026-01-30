@@ -29,7 +29,6 @@ export const wines = pgTable("wines", {
   description: text("description"),
   tastingNote: text("tasting_note"),
   pairing: text("pairing"),
-  occasionTags: text("occasion_tags"),
   sampleGroup: text("sample_group"),
 });
 

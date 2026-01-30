@@ -75,7 +75,13 @@ class DatabaseStorage implements IStorage {
       conditions.push(lte(wines.price, filters.priceMax));
     }
     if (filters?.occasion) {
-      conditions.push(ilike(wines.occasionTags, `%${filters.occasion}%`));
+      // Use subquery to filter wines by occasion through the junction table
+      const wineIdsWithOccasion = db
+        .select({ wineId: wineOccasions.wineId })
+        .from(wineOccasions)
+        .innerJoin(occasionTypes, eq(wineOccasions.occasionId, occasionTypes.id))
+        .where(ilike(occasionTypes.occasion, `%${filters.occasion}%`));
+      conditions.push(sql`${wines.id} IN (${wineIdsWithOccasion})`);
     }
     if (filters?.search) {
       conditions.push(
@@ -185,7 +191,6 @@ class DatabaseStorage implements IStorage {
       or(
         ilike(wines.nameKr, `%${kw}%`),
         ilike(wines.summary, `%${kw}%`),
-        ilike(wines.occasionTags, `%${kw}%`),
         ilike(wines.tastingNote, `%${kw}%`),
         ilike(wines.varieties, `%${kw}%`),
         ilike(wines.type, `%${kw}%`),

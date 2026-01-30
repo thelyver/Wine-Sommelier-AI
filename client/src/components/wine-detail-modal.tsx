@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Wine } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import type { Wine, OccasionType } from "@shared/schema";
 
 interface WineDetailModalProps {
   wine: Wine | null;
@@ -42,6 +43,11 @@ const wineBottleColors: Record<string, string> = {
 };
 
 export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
+  const { data: occasions = [] } = useQuery<OccasionType[]>({
+    queryKey: ['/api/wines', wine?.id, 'occasions'],
+    enabled: !!wine?.id,
+  });
+
   if (!wine) return null;
 
   const formatPrice = (price: number | null) => {
@@ -288,7 +294,7 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                 )}
 
                 {/* Occasion Tags */}
-                {wine.occasionTags && (
+                {occasions.length > 0 && (
                   <>
                     <Separator />
                     <div>
@@ -297,9 +303,9 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                         <h4 className="font-semibold">추천 상황</h4>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {wine.occasionTags.split("|").map((tag, i) => (
-                          <Badge key={i} variant="outline">
-                            {tag.trim()}
+                        {occasions.map((occ) => (
+                          <Badge key={occ.id} variant="outline">
+                            {occ.occasion}
                           </Badge>
                         ))}
                       </div>
@@ -307,7 +313,7 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                   </>
                 )}
 
-                {!wine.pairing && !wine.occasionTags && (
+                {!wine.pairing && occasions.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <UtensilsCrossed className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p>페어링 정보가 없습니다</p>

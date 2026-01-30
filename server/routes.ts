@@ -67,7 +67,7 @@ export async function registerRoutes(
   // Get single wine by ID
   app.get("/api/wines/:id", async (req: Request, res: Response) => {
     try {
-      const wine = await storage.getWineById(req.params.id);
+      const wine = await storage.getWineById(req.params.id as string);
       if (!wine) {
         return res.status(404).json({ error: "Wine not found" });
       }
@@ -75,6 +75,28 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching wine:", error);
       res.status(500).json({ error: "Failed to fetch wine" });
+    }
+  });
+
+  // Get wine occasions
+  app.get("/api/wines/:id/occasions", async (req: Request, res: Response) => {
+    try {
+      const occasions = await storage.getWineOccasions(req.params.id as string);
+      res.json(occasions);
+    } catch (error) {
+      console.error("Error fetching wine occasions:", error);
+      res.status(500).json({ error: "Failed to fetch wine occasions" });
+    }
+  });
+
+  // Get all occasion types
+  app.get("/api/occasions", async (_req: Request, res: Response) => {
+    try {
+      const occasions = await storage.getOccasionTypes();
+      res.json(occasions);
+    } catch (error) {
+      console.error("Error fetching occasions:", error);
+      res.status(500).json({ error: "Failed to fetch occasions" });
     }
   });
 
