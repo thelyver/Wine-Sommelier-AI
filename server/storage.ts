@@ -2,14 +2,17 @@ import { eq, and, gte, lte, or, ilike, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   wines,
-  occasions,
+  occasionTypes,
+  wineOccasions,
   keywordLib,
   conversations,
   messages,
   type Wine,
   type InsertWine,
-  type Occasion,
-  type InsertOccasion,
+  type OccasionType,
+  type InsertOccasionType,
+  type WineOccasion,
+  type InsertWineOccasion,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -34,8 +37,11 @@ export interface IStorage {
   insertWines(wines: InsertWine[]): Promise<void>;
   getWineCount(): Promise<number>;
   
-  // Occasions
-  insertOccasion(occasion: InsertOccasion): Promise<Occasion>;
+  // Occasion Types
+  getOccasionTypes(): Promise<OccasionType[]>;
+  
+  // Wine Occasions
+  getWineOccasions(wineId: string): Promise<OccasionType[]>;
   
   // Conversations
   getOrCreateConversation(): Promise<Conversation>;
@@ -118,9 +124,17 @@ class DatabaseStorage implements IStorage {
     return Number(result[0]?.count || 0);
   }
 
-  async insertOccasion(occasion: InsertOccasion): Promise<Occasion> {
-    const result = await db.insert(occasions).values(occasion).returning();
-    return result[0];
+  async getOccasionTypes(): Promise<OccasionType[]> {
+    return db.select().from(occasionTypes);
+  }
+
+  async getWineOccasions(wineId: string): Promise<OccasionType[]> {
+    const result = await db
+      .select()
+      .from(wineOccasions)
+      .innerJoin(occasionTypes, eq(wineOccasions.occasionId, occasionTypes.id))
+      .where(eq(wineOccasions.wineId, wineId));
+    return result.map(r => r.occasion_types);
   }
 
   async getOrCreateConversation(): Promise<Conversation> {

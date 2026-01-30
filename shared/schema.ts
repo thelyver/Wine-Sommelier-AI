@@ -33,23 +33,30 @@ export const wines = pgTable("wines", {
   sampleGroup: text("sample_group"),
 });
 
-// Occasions table - parsed occasion data per wine
-export const occasions = pgTable("occasions", {
+// Occasion types master table - from KeywordLib_occasion CSV
+export const occasionTypes = pgTable("occasion_types", {
+  id: serial("id").primaryKey(),
+  occasion: text("occasion").notNull().unique(),
+  occasionEn: text("occasion_en"),
+  description: text("description"),
+  useHint: text("use_hint"),
+  keywords: text("keywords").array(),
+});
+
+// Wine-Occasion junction table for many-to-many relationship
+export const wineOccasions = pgTable("wine_occasions", {
   id: serial("id").primaryKey(),
   wineId: varchar("wine_id", { length: 20 }).notNull().references(() => wines.id),
-  people: text("people"),
-  place: text("place"),
-  purpose: text("purpose"),
-  moodIntensity: text("mood_intensity"),
-  timing: text("timing"),
+  occasionId: integer("occasion_id").notNull().references(() => occasionTypes.id),
 });
 
 // Keyword library for mapping user keywords to filter values
+// Categories: nation, price, taste, type, use
 export const keywordLib = pgTable("keyword_lib", {
   id: serial("id").primaryKey(),
   category: text("category").notNull(),
-  keyword: text("keyword").notNull(),
-  mappedValue: text("mapped_value").notNull(),
+  key: text("key").notNull(),
+  keywords: text("keywords").array(),
 });
 
 // Chat conversations for sommelier
@@ -71,7 +78,8 @@ export const messages = pgTable("messages", {
 
 // Insert schemas
 export const insertWineSchema = createInsertSchema(wines);
-export const insertOccasionSchema = createInsertSchema(occasions).omit({ id: true });
+export const insertOccasionTypeSchema = createInsertSchema(occasionTypes).omit({ id: true });
+export const insertWineOccasionSchema = createInsertSchema(wineOccasions).omit({ id: true });
 export const insertKeywordLibSchema = createInsertSchema(keywordLib).omit({ id: true });
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
@@ -79,8 +87,10 @@ export const insertMessageSchema = createInsertSchema(messages).omit({ id: true,
 // Types
 export type Wine = typeof wines.$inferSelect;
 export type InsertWine = z.infer<typeof insertWineSchema>;
-export type Occasion = typeof occasions.$inferSelect;
-export type InsertOccasion = z.infer<typeof insertOccasionSchema>;
+export type OccasionType = typeof occasionTypes.$inferSelect;
+export type InsertOccasionType = z.infer<typeof insertOccasionTypeSchema>;
+export type WineOccasion = typeof wineOccasions.$inferSelect;
+export type InsertWineOccasion = z.infer<typeof insertWineOccasionSchema>;
 export type KeywordLib = typeof keywordLib.$inferSelect;
 export type InsertKeywordLib = z.infer<typeof insertKeywordLibSchema>;
 export type Conversation = typeof conversations.$inferSelect;
