@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { X, Star, MapPin, Grape, Wine as WineIcon, Droplets, Flame, Leaf, Clock, UtensilsCrossed, Tag } from "lucide-react";
+import { Star, MapPin, Grape, Wine as WineIcon, Droplets, Flame, Leaf, Clock, UtensilsCrossed, Tag, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogClose,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -40,11 +41,7 @@ const wineBottleColors: Record<string, string> = {
   Fortified: "from-amber-900 to-amber-700",
 };
 
-type TabType = "overview" | "taste" | "pairing";
-
 export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
-
   if (!wine) return null;
 
   const formatPrice = (price: number | null) => {
@@ -56,7 +53,7 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
     }).format(price);
   };
 
-  const rating = wine.vivinoRating || (Math.random() * 0.8 + 3.8).toFixed(1);
+  const rating = wine.vivinoRating;
   const bottleColor = wineBottleColors[wine.type || "RED"] || wineBottleColors.RED;
 
   const tastingAttributes = [
@@ -66,17 +63,23 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
     { label: "탄닌", value: wine.tannin, icon: Flame, color: "bg-orange-500", description: "떫은맛의 정도" },
   ].filter((attr) => attr.value !== null && attr.value !== undefined);
 
-  const tabs: { id: TabType; label: string }[] = [
-    { id: "overview", label: "개요" },
-    { id: "taste", label: "테이스팅" },
-    { id: "pairing", label: "페어링" },
-  ];
-
   return (
     <Dialog open={!!wine} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-xl max-h-[90vh] p-0 overflow-hidden gap-0" data-testid="modal-wine-detail">
         {/* Header with Wine Image - Vivino Style */}
         <div className="relative bg-gradient-to-b from-muted to-background p-6 pb-4">
+          {/* Explicit Close Button */}
+          <DialogClose asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-4 top-4 rounded-full bg-background/80 backdrop-blur-sm"
+              data-testid="button-close-modal"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </DialogClose>
           <div className="flex gap-6">
             {/* Wine Bottle */}
             <div className="flex-shrink-0">
@@ -107,13 +110,15 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
               )}
 
               {/* Rating - Vivino Style */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-1 bg-primary/10 rounded-lg px-3 py-2">
-                  <Star className="h-5 w-5 fill-primary text-primary" />
-                  <span className="text-xl font-bold text-primary">{rating}</span>
+              {rating && (
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-1 bg-primary/10 rounded-lg px-3 py-2">
+                    <Star className="h-5 w-5 fill-primary text-primary" />
+                    <span className="text-xl font-bold text-primary">{rating}</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">평점</span>
                 </div>
-                <span className="text-sm text-muted-foreground">평점</span>
-              </div>
+              )}
 
               {/* Price */}
               <div className="text-2xl font-bold">{formatPrice(wine.price)}</div>
@@ -121,30 +126,34 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
           </div>
         </div>
 
-        {/* Tab Navigation - Vivino Style */}
-        <div className="border-b border-border px-6">
-          <div className="flex gap-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-                data-testid={`tab-${tab.id}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Tabs - Using shadcn Tabs Component */}
+        <Tabs defaultValue="overview" className="flex flex-col">
+          <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-6">
+            <TabsTrigger 
+              value="overview" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="tab-overview"
+            >
+              개요
+            </TabsTrigger>
+            <TabsTrigger 
+              value="taste" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="tab-taste"
+            >
+              테이스팅
+            </TabsTrigger>
+            <TabsTrigger 
+              value="pairing" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="tab-pairing"
+            >
+              페어링
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tab Content */}
-        <ScrollArea className="flex-1 max-h-[50vh]">
-          <div className="p-6">
-            {activeTab === "overview" && (
+          <ScrollArea className="flex-1 max-h-[50vh]">
+            <TabsContent value="overview" className="mt-0 p-6">
               <div className="space-y-6">
                 {/* Wine Details */}
                 <div className="grid gap-3">
@@ -199,9 +208,9 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                   </div>
                 )}
               </div>
-            )}
+            </TabsContent>
 
-            {activeTab === "taste" && (
+            <TabsContent value="taste" className="mt-0 p-6">
               <div className="space-y-6">
                 {/* Tasting Profile */}
                 {tastingAttributes.length > 0 && (
@@ -243,9 +252,9 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                   </>
                 )}
               </div>
-            )}
+            </TabsContent>
 
-            {activeTab === "pairing" && (
+            <TabsContent value="pairing" className="mt-0 p-6">
               <div className="space-y-6">
                 {/* Pairing */}
                 {wine.pairing && (
@@ -256,7 +265,7 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {wine.pairing.split(",").map((item, i) => (
-                        <Badge key={i} variant="secondary" className="px-3 py-1.5 text-sm">
+                        <Badge key={i} variant="secondary">
                           {item.trim()}
                         </Badge>
                       ))}
@@ -275,7 +284,7 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {wine.occasionTags.split("|").map((tag, i) => (
-                          <Badge key={i} variant="outline" className="px-3 py-1.5 text-sm">
+                          <Badge key={i} variant="outline">
                             {tag.trim()}
                           </Badge>
                         ))}
@@ -291,9 +300,9 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </ScrollArea>
+            </TabsContent>
+          </ScrollArea>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

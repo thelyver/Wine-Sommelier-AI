@@ -44,7 +44,7 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
     }).format(price);
   };
 
-  const rating = wine.vivinoRating || (Math.random() * 0.8 + 3.8).toFixed(1);
+  const rating = wine.vivinoRating;
   const bottleColor = wineBottleColors[wine.type || "RED"] || wineBottleColors.RED;
 
   if (compact) {
@@ -67,15 +67,17 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
             </p>
             
             {/* Name */}
-            <h3 className="text-sm font-medium text-center line-clamp-2 mb-2 group-hover:text-primary">
+            <h3 className="text-sm font-medium text-center line-clamp-2 mb-2">
               {wine.nameKr?.split(" ").slice(0, 3).join(" ")}
             </h3>
             
             {/* Rating */}
-            <div className="flex items-center gap-1 mb-2">
-              <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-              <span className="text-sm font-semibold">{rating}</span>
-            </div>
+            {rating && (
+              <div className="flex items-center gap-1 mb-2">
+                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                <span className="text-sm font-semibold">{rating}</span>
+              </div>
+            )}
             
             {/* Price */}
             <span className="text-sm font-bold text-foreground">
@@ -125,7 +127,7 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
           </p>
           
           {/* Wine Name */}
-          <h3 className="font-medium leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-primary">
+          <h3 className="font-medium leading-snug line-clamp-2 min-h-[2.5rem]">
             {wine.nameKr}
           </h3>
 
@@ -135,15 +137,17 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
           </p>
 
           {/* Rating - Vivino Style */}
-          <div className="flex items-center gap-2 py-2">
-            <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-1">
-              <Star className="h-4 w-4 fill-primary text-primary" />
-              <span className="text-sm font-bold text-primary">{rating}</span>
+          {rating && (
+            <div className="flex items-center gap-2 py-2">
+              <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2 py-1">
+                <Star className="h-4 w-4 fill-primary text-primary" />
+                <span className="text-sm font-bold text-primary">{rating}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                평점
+              </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              평점
-            </span>
-          </div>
+          )}
 
           {/* Price & Add Button */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -153,7 +157,7 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
             <Button
               size="sm"
               variant="outline"
-              className="h-8 px-3 gap-1"
+              className="gap-1"
               onClick={(e) => {
                 e.stopPropagation();
                 onClick();

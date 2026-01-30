@@ -12,11 +12,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import type { Wine as WineType } from "@shared/schema";
 
 const categoryPills = [
-  { id: "RED", label: "레드 와인", color: "bg-rose-600 hover:bg-rose-700 text-white" },
-  { id: "WHITE", label: "화이트 와인", color: "bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900 dark:hover:bg-amber-800 dark:text-amber-100" },
-  { id: "SPARKLING", label: "스파클링", color: "bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-900 dark:hover:bg-cyan-800 dark:text-cyan-100" },
-  { id: "Rose", label: "로제", color: "bg-pink-200 hover:bg-pink-300 text-pink-800 dark:bg-pink-900 dark:hover:bg-pink-800 dark:text-pink-100" },
-  { id: "Fortified", label: "주정강화", color: "bg-purple-600 hover:bg-purple-700 text-white" },
+  { id: "RED", label: "레드 와인", color: "bg-rose-600 text-white" },
+  { id: "WHITE", label: "화이트 와인", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100" },
+  { id: "SPARKLING", label: "스파클링", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100" },
+  { id: "Rose", label: "로제", color: "bg-pink-200 text-pink-800 dark:bg-pink-900 dark:text-pink-100" },
+  { id: "Fortified", label: "주정강화", color: "bg-purple-600 text-white" },
 ];
 
 export default function Home() {
@@ -92,7 +92,7 @@ export default function Home() {
                   placeholder="와인 이름, 품종, 국가로 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 w-full pl-10 bg-muted/50 border-0"
+                  className="w-full pl-10 bg-muted/50 border-0"
                   data-testid="input-search"
                 />
               </div>
@@ -131,9 +131,10 @@ export default function Home() {
                   </p>
                   <Button 
                     size="lg" 
-                    variant="secondary"
+                    variant="outline"
                     onClick={() => setShowChat(true)}
-                    className="gap-2"
+                    className="gap-2 bg-background/20 backdrop-blur-sm border-primary-foreground/30 text-primary-foreground"
+                    data-testid="button-hero-chat"
                   >
                     <Sparkles className="h-5 w-5" />
                     AI 소믈리에와 대화하기
@@ -153,12 +154,10 @@ export default function Home() {
             <div className="container mx-auto px-4">
               <div className="flex flex-wrap items-center gap-2">
                 {categoryPills.map((cat) => (
-                  <Button
+                  <Badge
                     key={cat.id}
-                    variant="ghost"
-                    size="sm"
                     onClick={() => handleCategoryClick(cat.id)}
-                    className={`rounded-full px-4 ${
+                    className={`cursor-pointer rounded-full ${
                       filters.type === cat.id 
                         ? cat.color + " ring-2 ring-offset-2 ring-primary" 
                         : cat.color
@@ -166,7 +165,7 @@ export default function Home() {
                     data-testid={`button-category-${cat.id}`}
                   >
                     {cat.label}
-                  </Button>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -181,7 +180,7 @@ export default function Home() {
                   placeholder="와인 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-10 bg-muted/50 border-0"
+                  className="pl-10 bg-muted/50 border-0"
                   data-testid="input-search-mobile"
                 />
               </div>
@@ -194,7 +193,7 @@ export default function Home() {
               <div className="container mx-auto px-4">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-xl font-bold">인기 와인</h2>
-                  <Button variant="ghost" size="sm" className="gap-1 text-primary">
+                  <Button variant="ghost" size="sm" className="gap-1 text-primary" data-testid="button-view-all">
                     전체 보기 <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -267,6 +266,7 @@ export default function Home() {
                     variant="outline"
                     className="mt-4"
                     onClick={clearFilters}
+                    data-testid="button-reset-filters-empty"
                   >
                     필터 초기화
                   </Button>
