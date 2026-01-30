@@ -55,6 +55,7 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
 
   const rating = wine.vivinoRating;
   const bottleColor = wineBottleColors[wine.type || "RED"] || wineBottleColors.RED;
+  const imageUrl = `/wine-images/${wine.id}.png`;
 
   const tastingAttributes = [
     { label: "당도", value: wine.sweet, icon: Droplets, color: "bg-pink-500", description: "단맛의 정도" },
@@ -81,15 +82,28 @@ export function WineDetailModal({ wine, onClose }: WineDetailModalProps) {
             </Button>
           </DialogClose>
           <div className="flex gap-6">
-            {/* Wine Bottle */}
+            {/* Wine Bottle Image */}
             <div className="flex-shrink-0">
-              <div className={`relative h-40 w-16 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-xl`}>
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-4 bg-amber-800 rounded-t-sm" />
-                {wine.year && wine.year !== "non-vintage" && (
-                  <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[10px] text-white/80 font-medium">
-                    {wine.year}
+              <div className="relative h-48 w-24 flex items-end justify-center">
+                <img 
+                  src={imageUrl} 
+                  alt={wine.nameKr || wine.nameEn || "Wine"} 
+                  className="h-full w-auto object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <div className={`hidden absolute inset-0 flex items-end justify-center`}>
+                  <div className={`h-40 w-16 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-xl relative`}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-4 bg-amber-800 rounded-t-sm" />
+                    {wine.year && wine.year !== "non-vintage" && (
+                      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[10px] text-white/80 font-medium">
+                        {wine.year}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
 

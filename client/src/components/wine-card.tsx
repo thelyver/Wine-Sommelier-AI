@@ -47,6 +47,8 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
   const rating = wine.vivinoRating;
   const bottleColor = wineBottleColors[wine.type || "RED"] || wineBottleColors.RED;
 
+  const imageUrl = `/wine-images/${wine.id}.png`;
+
   if (compact) {
     return (
       <Card
@@ -56,9 +58,22 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
       >
         <CardContent className="p-0">
           <div className="relative flex flex-col items-center p-4 bg-card rounded-lg">
-            {/* Wine Bottle */}
-            <div className={`relative h-32 w-12 rounded-t-full bg-gradient-to-b ${bottleColor} mb-3 shadow-lg`}>
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-3 bg-amber-800 rounded-t-sm" />
+            {/* Wine Bottle Image */}
+            <div className="relative h-32 w-20 mb-3 flex items-end justify-center">
+              <img 
+                src={imageUrl} 
+                alt={wine.nameKr || wine.nameEn || "Wine"} 
+                className="h-full w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <div className={`hidden absolute inset-0 flex items-end justify-center`}>
+                <div className={`h-28 w-10 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-lg`}>
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-3 bg-amber-800 rounded-t-sm" />
+                </div>
+              </div>
             </div>
             
             {/* Producer */}
@@ -108,14 +123,27 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
             </Badge>
           )}
           
-          {/* Wine Bottle Illustration */}
-          <div className={`relative h-36 w-14 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-lg`}>
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-4 bg-amber-800 rounded-t-sm" />
-            {wine.year && wine.year !== "non-vintage" && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[8px] text-white/80 font-medium">
-                {wine.year}
+          {/* Wine Bottle Image */}
+          <div className="relative h-40 w-24 flex items-end justify-center">
+            <img 
+              src={imageUrl} 
+              alt={wine.nameKr || wine.nameEn || "Wine"} 
+              className="h-full w-auto object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className={`hidden absolute inset-0 flex items-end justify-center`}>
+              <div className={`h-36 w-14 rounded-t-full bg-gradient-to-b ${bottleColor} shadow-lg relative`}>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-4 bg-amber-800 rounded-t-sm" />
+                {wine.year && wine.year !== "non-vintage" && (
+                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[8px] text-white/80 font-medium">
+                    {wine.year}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
