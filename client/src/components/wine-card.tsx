@@ -111,18 +111,20 @@ export function WineCard({ wine, onClick, compact = false }: WineCardProps) {
       data-testid={`card-wine-${wine.id}`}
     >
       <CardContent className="p-0">
-        {/* Wine Image Area - Vivino Style */}
-        <div className="relative flex flex-col items-center pt-8 pb-4 px-4 bg-gradient-to-b from-muted/30 to-transparent">
-          {/* Type Badge - Top Left with high z-index */}
-          {wine.type && (
+        {/* Type Badge - Above Image */}
+        {wine.type && (
+          <div className="flex justify-center py-2 bg-gradient-to-b from-muted/30 to-transparent">
             <Badge
-              className={`absolute left-2 top-2 z-10 text-xs ${typeColors[wine.type] || "bg-muted"}`}
+              className={`text-xs ${typeColors[wine.type] || "bg-muted"}`}
               data-testid={`badge-type-${wine.id}`}
             >
               {typeLabels[wine.type] || wine.type}
             </Badge>
-          )}
-          
+          </div>
+        )}
+
+        {/* Wine Image Area */}
+        <div className="flex flex-col items-center pb-4 px-4 bg-gradient-to-b from-transparent to-transparent">
           {/* Wine Bottle Image */}
           <div className="relative h-36 w-full flex items-end justify-center">
             <img 
