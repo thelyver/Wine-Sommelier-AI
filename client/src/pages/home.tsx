@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Wine, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield, Key } from "lucide-react";
+import { Wine, Search, X, Sparkles, ChevronRight, ChevronLeft, GripVertical, User, LogOut, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,9 @@ export default function Home() {
   const [chatWidth, setChatWidth] = useState(480);
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const [filters, setFilters] = useState<{
@@ -151,6 +154,23 @@ export default function Home() {
   });
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  const updateCarouselScroll = useCallback(() => {
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  }, []);
+
+  const scrollCarousel = useCallback((direction: 'left' | 'right') => {
+    if (carouselRef.current) {
+      const scrollAmount = 240; // width of one wine card + gap
+      const newScrollLeft = carouselRef.current.scrollLeft + (direction === 'right' ? scrollAmount : -scrollAmount);
+      carouselRef.current.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+      setTimeout(updateCarouselScroll, 300);
+    }
+  }, [updateCarouselScroll]);
 
   const clearFilters = () => {
     setFilters({});
@@ -325,21 +345,31 @@ export default function Home() {
               <div className="container mx-auto px-4">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-xl font-bold">인기 와인</h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="gap-1 text-primary" 
-                    onClick={() => {
-                      setFilters({});
-                      setSearchQuery("");
-                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                    }}
-                    data-testid="button-view-all"
-                  >
-                    전체 보기 <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      className={`h-8 w-8 rounded-full transition-opacity ${canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                      onClick={() => scrollCarousel('left')}
+                      data-testid="button-carousel-left"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      className={`h-8 w-8 rounded-full transition-opacity ${canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                      onClick={() => scrollCarousel('right')}
+                      data-testid="button-carousel-right"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                <div 
+                  ref={carouselRef}
+                  onScroll={updateCarouselScroll}
+                  className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                   {featuredWines.slice(0, 10).map((wine) => (
                     <div key={wine.id} className="flex-none w-56">
                       <WineCard
