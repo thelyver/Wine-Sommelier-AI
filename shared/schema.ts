@@ -50,11 +50,28 @@ export const wineOccasions = pgTable("wine_occasions", {
 });
 
 // Keyword library for mapping user keywords to filter values
-// Categories: nation, price, taste, type, use
+// Categories: nation, type, use (taste and price moved to dedicated tables)
 export const keywordLib = pgTable("keyword_lib", {
   id: serial("id").primaryKey(),
   category: text("category").notNull(),
   key: text("key").notNull(),
+  keywords: text("keywords").array(),
+});
+
+// Taste levels - maps wine taste attributes (sweet, acidity, body, tannin) levels 1-5 to keywords
+export const tasteLevels = pgTable("taste_levels", {
+  id: serial("id").primaryKey(),
+  attribute: text("attribute").notNull(), // sweet, acidity, body, tannin
+  level: integer("level").notNull(), // 1-5
+  keywords: text("keywords").array(),
+});
+
+// Price ranges - maps price ranges to keywords
+export const priceRanges = pgTable("price_ranges", {
+  id: serial("id").primaryKey(),
+  rangeName: text("range_name").notNull().unique(),
+  minPrice: integer("min_price").notNull(),
+  maxPrice: integer("max_price").notNull(),
   keywords: text("keywords").array(),
 });
 
@@ -80,6 +97,8 @@ export const insertWineSchema = createInsertSchema(wines);
 export const insertOccasionTypeSchema = createInsertSchema(occasionTypes).omit({ id: true });
 export const insertWineOccasionSchema = createInsertSchema(wineOccasions).omit({ id: true });
 export const insertKeywordLibSchema = createInsertSchema(keywordLib).omit({ id: true });
+export const insertTasteLevelSchema = createInsertSchema(tasteLevels).omit({ id: true });
+export const insertPriceRangeSchema = createInsertSchema(priceRanges).omit({ id: true });
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 
@@ -92,6 +111,10 @@ export type WineOccasion = typeof wineOccasions.$inferSelect;
 export type InsertWineOccasion = z.infer<typeof insertWineOccasionSchema>;
 export type KeywordLib = typeof keywordLib.$inferSelect;
 export type InsertKeywordLib = z.infer<typeof insertKeywordLibSchema>;
+export type TasteLevel = typeof tasteLevels.$inferSelect;
+export type InsertTasteLevel = z.infer<typeof insertTasteLevelSchema>;
+export type PriceRange = typeof priceRanges.$inferSelect;
+export type InsertPriceRange = z.infer<typeof insertPriceRangeSchema>;
 export type Conversation = typeof conversations.$inferSelect;
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Message = typeof messages.$inferSelect;
@@ -99,7 +122,7 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 // Filter types for the UI
 export const wineTypes = ["RED", "WHITE", "SPARKLING", "Rose", "Fortified"] as const;
-export const priceRanges = [
+export const priceRangeFilters = [
   { label: "~2만원", min: 0, max: 20000 },
   { label: "2~5만원", min: 20000, max: 50000 },
   { label: "5~10만원", min: 50000, max: 100000 },
