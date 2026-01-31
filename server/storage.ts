@@ -72,6 +72,7 @@ export interface IStorage {
   getAllUsers(): Promise<SafeUser[]>;
   getUserCount(): Promise<number>;
   updateUser(id: number, data: Partial<{ email: string; name: string; role: string }>): Promise<SafeUser | undefined>;
+  updateUserPassword(id: number, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   
   // Conversations
@@ -245,6 +246,10 @@ class DatabaseStorage implements IStorage {
         createdAt: users.createdAt,
       });
     return result[0];
+  }
+
+  async updateUserPassword(id: number, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, id));
   }
 
   async deleteUser(id: number): Promise<void> {

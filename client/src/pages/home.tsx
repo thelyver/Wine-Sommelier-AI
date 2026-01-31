@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield } from "lucide-react";
+import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { SommelierChat } from "@/components/sommelier-chat";
 import { WineDetailModal } from "@/components/wine-detail-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthModal } from "@/components/auth-modal";
+import { PasswordChangeModal } from "@/components/password-change-modal";
 import { useAuth } from "@/contexts/auth-context";
 import type { Wine as WineType } from "@shared/schema";
 
@@ -26,6 +27,7 @@ const categoryPills = [
 export default function Home() {
   const [showChat, setShowChat] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWine, setSelectedWine] = useState<WineType | null>(null);
   const [chatWidth, setChatWidth] = useState(480);
@@ -182,15 +184,19 @@ export default function Home() {
                       )}
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowPasswordModal(true)} data-testid="menu-change-password">
+                      <Key className="mr-2 h-4 w-4" />
+                      비밀번호 변경
+                    </DropdownMenuItem>
                     {isAdmin && (
                       <>
                         <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
                           <Shield className="mr-2 h-4 w-4" />
                           관리자 페이지
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                       </>
                     )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => logout()} data-testid="menu-logout">
                       <LogOut className="mr-2 h-4 w-4" />
                       로그아웃
@@ -429,6 +435,12 @@ export default function Home() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+      />
+
+      {/* Password Change Modal */}
+      <PasswordChangeModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
       />
     </div>
   );

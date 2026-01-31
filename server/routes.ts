@@ -692,6 +692,48 @@ export async function registerRoutes(
     }
   });
 
+  // Change password
+  app.post("/api/auth/change-password", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "로그인이 필요합니다." });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "현재 비밀번호와 새 비밀번호를 입력해주세요." });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "새 비밀번호는 6자 이상이어야 합니다." });
+      }
+
+      // Get user
+      const user = await storage.getUserById(req.session.userId);
+      if (!user) {
+        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "현재 비밀번호가 올바르지 않습니다." });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await storage.updateUserPassword(user.id, hashedPassword);
+
+      res.json({ success: true, message: "비밀번호가 변경되었습니다." });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ error: "비밀번호 변경에 실패했습니다." });
+    }
+  });
+
   // ============ ADMIN ROUTES ============
 
   // Middleware to check if user is admin

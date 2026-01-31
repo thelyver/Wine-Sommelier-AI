@@ -18,6 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -66,6 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+      const res = await apiRequest("POST", "/api/auth/change-password", { currentPassword, newPassword });
+      return res.json();
+    },
+  });
+
   const login = async (email: string, password: string) => {
     await loginMutation.mutateAsync({ email, password });
   };
@@ -78,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutMutation.mutateAsync();
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await changePasswordMutation.mutateAsync({ currentPassword, newPassword });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -88,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        changePassword,
       }}
     >
       {children}
