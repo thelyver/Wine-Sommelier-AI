@@ -581,11 +581,16 @@ export async function registerRoutes(
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      // Check if this is the first user (make them admin)
+      const userCount = await storage.getUserCount();
+      const isFirstUser = userCount === 0;
+
       // Create user
       const user = await storage.createUser({
         email,
         password: hashedPassword,
         name,
+        role: isFirstUser ? "admin" : "user",
       });
 
       // Set session

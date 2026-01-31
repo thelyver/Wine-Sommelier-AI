@@ -70,6 +70,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(data: { email: string; password: string; name?: string; role?: string }): Promise<User>;
   getAllUsers(): Promise<SafeUser[]>;
+  getUserCount(): Promise<number>;
   updateUser(id: number, data: Partial<{ email: string; name: string; role: string }>): Promise<SafeUser | undefined>;
   deleteUser(id: number): Promise<void>;
   
@@ -224,6 +225,11 @@ class DatabaseStorage implements IStorage {
       createdAt: users.createdAt,
     }).from(users).orderBy(desc(users.createdAt));
     return result;
+  }
+
+  async getUserCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+    return Number(result[0]?.count || 0);
   }
 
   async updateUser(id: number, data: Partial<{ email: string; name: string; role: string }>): Promise<SafeUser | undefined> {
