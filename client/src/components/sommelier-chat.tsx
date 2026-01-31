@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(true);
+  const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -244,31 +244,86 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   };
 
   return (
-    <div className="flex h-full">
-      {/* Conversation History Sidebar */}
-      {showHistory && (
-        <div className="w-56 border-r border-border bg-muted/30 flex flex-col">
-          <div className="p-3 border-b border-border">
-            <Button
-              onClick={() => createConversation.mutate()}
-              className="w-full gap-2"
-              size="sm"
-              data-testid="button-new-chat"
-            >
-              <Plus className="h-4 w-4" />
-              새 대화
-            </Button>
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border bg-sidebar p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
+            <Sparkles className="h-5 w-5 text-accent-foreground" />
           </div>
-          
+          <div>
+            <h3 className="font-semibold text-sidebar-foreground">AI 소믈리에</h3>
+            <p className="text-xs text-sidebar-foreground/70">와인 추천 전문가</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => createConversation.mutate()}
+            className="text-sidebar-foreground"
+            data-testid="button-new-chat-header"
+            title="새 대화"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="text-sidebar-foreground"
+            data-testid="button-close-chat"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab("chat")}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            activeTab === "chat"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-chat"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            채팅
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            activeTab === "history"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-history"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <History className="h-4 w-4" />
+            이전 대화
+          </div>
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "history" ? (
+        /* History Tab Content */
+        <div className="flex-1 flex flex-col">
           {/* Search */}
           <div className="p-3 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="대화 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm"
+                className="pl-9"
                 data-testid="input-search-conversations"
               />
             </div>
@@ -276,7 +331,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
 
           {/* Conversation List */}
           <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
+            <div className="p-3 space-y-2">
               {searchQuery.trim() ? (
                 // Show search results
                 searchResults.length > 0 ? (
@@ -286,14 +341,15 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                       onClick={() => {
                         setActiveConversationId(conv.id);
                         setSearchQuery("");
+                        setActiveTab("chat");
                       }}
-                      className={`p-2 rounded-md cursor-pointer text-sm hover-elevate ${
-                        conv.id === activeConversationId ? "bg-accent" : ""
+                      className={`p-3 rounded-md cursor-pointer hover-elevate border border-border ${
+                        conv.id === activeConversationId ? "bg-accent" : "bg-card"
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{conv.title}</span>
+                        <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="font-medium truncate">{conv.title}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {formatDate(conv.createdAt)}
@@ -301,34 +357,37 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground p-2">검색 결과 없음</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">검색 결과가 없습니다</p>
                 )
-              ) : (
+              ) : allConversations.length > 0 ? (
                 // Show all conversations
                 allConversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`group p-2 rounded-md cursor-pointer text-sm hover-elevate ${
-                      conv.id === activeConversationId ? "bg-accent" : ""
+                    className={`group p-3 rounded-md cursor-pointer hover-elevate border border-border ${
+                      conv.id === activeConversationId ? "bg-accent" : "bg-card"
                     }`}
                   >
                     <div 
-                      onClick={() => setActiveConversationId(conv.id)}
+                      onClick={() => {
+                        setActiveConversationId(conv.id);
+                        setActiveTab("chat");
+                      }}
                       className="flex items-center gap-2"
                     >
-                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1">{conv.title}</span>
+                      <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium truncate flex-1">{conv.title}</span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteConversation.mutate(conv.id);
                         }}
                         data-testid={`button-delete-conversation-${conv.id}`}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
@@ -336,57 +395,29 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                     </div>
                   </div>
                 ))
+              ) : (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">아직 대화가 없습니다</p>
+                  <Button
+                    onClick={() => {
+                      createConversation.mutate();
+                      setActiveTab("chat");
+                    }}
+                    className="mt-3"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    새 대화 시작
+                  </Button>
+                </div>
               )}
             </div>
           </ScrollArea>
         </div>
-      )}
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-sidebar p-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowHistory(!showHistory)}
-              className="text-sidebar-foreground"
-              data-testid="button-toggle-history"
-            >
-              {showHistory ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            </Button>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
-              <Sparkles className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-sidebar-foreground">AI 소믈리에</h3>
-              <p className="text-xs text-sidebar-foreground/70">와인 추천 전문가</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => createConversation.mutate()}
-              className="text-sidebar-foreground"
-              data-testid="button-new-chat-header"
-              title="새 대화"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="text-sidebar-foreground"
-              data-testid="button-close-chat"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-
+      ) : (
+        /* Chat Tab Content */
+        <>
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
@@ -601,7 +632,8 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
           </Button>
         </div>
       </form>
-      </div>
+      </>
+      )}
     </div>
   );
 }
