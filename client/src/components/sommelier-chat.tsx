@@ -258,10 +258,10 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => createConversation.mutate()}
-            className="gap-1"
+            className="gap-1 bg-white/90 text-gray-800 hover:bg-white dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
             data-testid="button-new-chat-header"
           >
             <Plus className="h-4 w-4" />
@@ -271,7 +271,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="text-sidebar-foreground"
+            className="text-white hover:bg-white/20"
             data-testid="button-close-chat"
           >
             <X className="h-5 w-5" />
