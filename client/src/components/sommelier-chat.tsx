@@ -18,8 +18,9 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastMessageRef = useRef<HTMLDivElement>(null);
+  const userMessageRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   // Get or create conversation
@@ -68,6 +69,8 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
         throw new Error("No conversation");
       }
 
+      setPendingUserMessage(content);
+      setInput("");
       setIsStreaming(true);
       setStreamedContent("");
 
@@ -124,17 +127,17 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
 
       return fullContent;
     },
-    onSuccess: (content) => {
-      // Immediately update local state and then invalidate
+    onSuccess: () => {
       setIsStreaming(false);
       setStreamedContent("");
-      setInput("");
+      setPendingUserMessage(null);
       queryClient.invalidateQueries({ queryKey: ["/api/sommelier/messages"] });
     },
     onError: (error) => {
       console.error("Chat error:", error);
       setIsStreaming(false);
       setStreamedContent("");
+      setPendingUserMessage(null);
     },
   });
 
@@ -144,26 +147,19 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     sendMessage.mutate(input.trim());
   };
 
-  // Scroll to last message when streaming starts (to show the user's question)
+  // Scroll to user message when it's sent
   useEffect(() => {
-    if (isStreaming && !streamedContent && lastMessageRef.current) {
-      lastMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (pendingUserMessage && userMessageRef.current) {
+      userMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [isStreaming, streamedContent]);
+  }, [pendingUserMessage]);
 
-  // Scroll to bottom as streaming content grows
+  // Scroll to bottom as streaming content grows or when new messages are added
   useEffect(() => {
-    if (streamedContent && scrollRef.current) {
+    if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [streamedContent]);
-
-  // Scroll to bottom when new messages are added
-  useEffect(() => {
-    if (messages.length > 0 && scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-  }, [messages]);
+  }, [streamedContent, messages]);
 
   const suggestionQuestions = [
     "오늘 혼술하려는데 레드 와인 추천해줘",
@@ -237,10 +233,9 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
           )}
 
           {/* Chat Messages */}
-          {messages.map((msg, index) => (
+          {messages.map((msg) => (
             <div
               key={msg.id}
-              ref={index === messages.length - 1 ? lastMessageRef : null}
               className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
             >
               <div
@@ -305,6 +300,21 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
               </div>
             </div>
           ))}
+
+          {/* Pending User Message (shown immediately when user sends) */}
+          {pendingUserMessage && (
+            <div
+              ref={userMessageRef}
+              className="flex gap-3 flex-row-reverse"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary">
+                <User className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div className="max-w-[80%] rounded-lg p-3 bg-primary text-primary-foreground">
+                <p className="whitespace-pre-wrap text-sm">{pendingUserMessage}</p>
+              </div>
+            </div>
+          )}
 
           {/* Streaming Response */}
           {isStreaming && (
