@@ -25,6 +25,8 @@ The frontend follows a component-based architecture with pages in `client/src/pa
 - **Database ORM**: Drizzle ORM with PostgreSQL
 - **AI Integration**: OpenAI API (via Replit AI Integrations) for sommelier chat
 - **Pattern**: RESTful API with streaming SSE for chat responses
+- **Authentication**: Custom DB-based auth with bcrypt password hashing
+- **Session Management**: PostgreSQL-backed sessions via connect-pg-simple
 
 API routes are registered in `server/routes.ts` with storage operations abstracted in `server/storage.ts`. The server supports both development (Vite middleware) and production (static file serving) modes.
 
@@ -32,8 +34,23 @@ API routes are registered in `server/routes.ts` with storage operations abstract
 Core tables defined in `shared/schema.ts`:
 - **wines**: Main wine catalog with attributes (name, type, nation, tasting notes, price, etc.)
 - **occasions**: Wine-occasion mappings for contextual recommendations  
-- **conversations/messages**: Chat history for AI sommelier interactions
+- **conversations/messages**: Chat history for AI sommelier interactions (linked to users)
 - **keywordLib**: Keyword mappings for filter-based search
+- **users**: User accounts with email, password (hashed), name, role (user/admin), createdAt
+
+### Authentication System
+- **Registration**: Email, password (min 6 chars), name validation
+- **Login**: Email/password verification with bcrypt
+- **Sessions**: PostgreSQL-backed sessions with 7-day expiry
+- **Role-based Access**: Admin role for user management
+- **Security**: 
+  - bcrypt password hashing (salt rounds: 10)
+  - httpOnly cookies
+  - SESSION_SECRET required in production
+
+### Chat Storage Differentiation
+- **Guest Users**: Temporary chat stored in browser memory (React state), cleared on session expiry
+- **Registered Users**: Persistent chat history stored in PostgreSQL with search functionality
 
 ### Key Design Decisions
 
@@ -44,6 +61,8 @@ Core tables defined in `shared/schema.ts`:
 **Shared Schema**: Database schema lives in `shared/schema.ts` to ensure type consistency between frontend and backend using Drizzle-Zod integration.
 
 **Wine Context Injection**: The AI sommelier receives the actual wine database as context to ensure recommendations are grounded in available inventory rather than hallucinated.
+
+**Guest vs. Authenticated Chat**: Non-authenticated users can use AI sommelier but chat is temporary. Authenticated users get persistent history with search.
 
 ## External Dependencies
 
@@ -57,7 +76,13 @@ Core tables defined in `shared/schema.ts`:
 
 ### Third-Party Libraries
 - **csv-parse**: Initial data seeding from CSV files in `attached_assets/`
-- **connect-pg-simple**: PostgreSQL session storage (available but may not be actively used)
+- **connect-pg-simple**: PostgreSQL session storage for authentication
+- **bcryptjs**: Password hashing for user authentication
+
+### Environment Variables
+- `DATABASE_URL`: PostgreSQL connection string
+- `SESSION_SECRET`: Required in production for session encryption
+- `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI API key (via Replit AI Integrations)
 
 ### Replit Integrations
 The `server/replit_integrations/` directory contains pre-built utilities for:
@@ -67,3 +92,22 @@ The `server/replit_integrations/` directory contains pre-built utilities for:
 - Chat storage abstractions
 
 These are scaffolded integration patterns that can be activated as needed.
+
+## Recent Changes (January 31, 2026)
+
+### Authentication System
+- Added custom DB-based authentication with users table
+- Implemented registration, login, logout API endpoints
+- PostgreSQL-backed session management with connect-pg-simple
+- Role-based access control (user/admin roles)
+
+### Admin Features
+- Admin page at `/admin` for user management
+- List all users with role badges
+- Edit user roles (user/admin)
+- Delete users (with self-deletion prevention)
+
+### Chat History Differentiation
+- Guest users: In-memory temporary chat
+- Authenticated users: Persistent DB-stored chat with search
+- Guest chat endpoint (`/api/sommelier/chat/guest`) with sanitized history
