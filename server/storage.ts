@@ -100,6 +100,38 @@ export interface IStorage {
   smartSearchWines(filters: SmartSearchFilters, limit?: number): Promise<Wine[]>;
 }
 
+// Korean to English country name mapping for search
+const koreanToEnglishCountry: Record<string, string> = {
+  "미국": "USA",
+  "프랑스": "France",
+  "이탈리아": "Italy",
+  "스페인": "Spain",
+  "독일": "Germany",
+  "호주": "Australia",
+  "뉴질랜드": "New Zealand",
+  "칠레": "Chile",
+  "아르헨티나": "Argentina",
+  "포르투갈": "Portugal",
+  "남아프리카": "South Africa",
+  "오스트리아": "Austria",
+  "그리스": "Greece",
+  "헝가리": "Hungary",
+  "일본": "Japan",
+  "중국": "China",
+  "캐나다": "Canada",
+  "영국": "UK",
+};
+
+// Korean to English wine type mapping for search
+const koreanToEnglishType: Record<string, string> = {
+  "레드": "RED",
+  "화이트": "WHITE",
+  "로제": "ROSE",
+  "스파클링": "SPARKLING",
+  "디저트": "DESSERT",
+  "주정강화": "FORTIFIED",
+};
+
 class DatabaseStorage implements IStorage {
   async getWines(filters?: WineFilters): Promise<Wine[]> {
     const conditions = [];
@@ -128,15 +160,28 @@ class DatabaseStorage implements IStorage {
       conditions.push(sql`${wines.id} IN (${wineIdsWithOccasion})`);
     }
     if (filters?.search) {
-      conditions.push(
-        or(
-          ilike(wines.nameKr, `%${filters.search}%`),
-          ilike(wines.nameEn, `%${filters.search}%`),
-          ilike(wines.varieties, `%${filters.search}%`),
-          ilike(wines.nation, `%${filters.search}%`),
-          ilike(wines.producer, `%${filters.search}%`)
-        )
-      );
+      const searchTerm = filters.search;
+      const searchConditions = [
+        ilike(wines.nameKr, `%${searchTerm}%`),
+        ilike(wines.nameEn, `%${searchTerm}%`),
+        ilike(wines.varieties, `%${searchTerm}%`),
+        ilike(wines.nation, `%${searchTerm}%`),
+        ilike(wines.producer, `%${searchTerm}%`)
+      ];
+      
+      // Check if search term is a Korean country name and add English equivalent
+      const englishCountry = koreanToEnglishCountry[searchTerm];
+      if (englishCountry) {
+        searchConditions.push(ilike(wines.nation, `%${englishCountry}%`));
+      }
+      
+      // Check if search term is a Korean wine type and add English equivalent
+      const englishType = koreanToEnglishType[searchTerm];
+      if (englishType) {
+        searchConditions.push(ilike(wines.type, `%${englishType}%`));
+      }
+      
+      conditions.push(or(...searchConditions));
     }
 
     const query = db.select().from(wines);
