@@ -218,7 +218,22 @@ export async function registerRoutes(
     }
   });
 
-  // Get messages for a conversation
+  // Get messages for a conversation (with path parameter)
+  app.get("/api/sommelier/messages/:conversationId", async (req: Request, res: Response) => {
+    try {
+      const conversationId = parseInt(req.params.conversationId);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      const messages = await storage.getMessagesByConversationId(conversationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Get messages for a conversation (with query parameter - legacy support)
   app.get("/api/sommelier/messages", async (req: Request, res: Response) => {
     try {
       const conversationId = parseInt(req.query.conversationId as string);
