@@ -141,7 +141,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-4rem)]">
+      <div className={`flex h-[calc(100vh-4rem)] ${isResizing ? "select-none" : ""}`}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Hero Banner - wine.com Style */}
@@ -322,10 +322,11 @@ export default function Home() {
             <div
               ref={resizeRef}
               onMouseDown={handleMouseDown}
-              className={`absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-primary/50 transition-colors ${isResizing ? "bg-primary" : "bg-transparent"}`}
+              className={`absolute -left-2 top-0 bottom-0 w-4 cursor-ew-resize z-10 group`}
               data-testid="resize-handle"
             >
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-8 w-4 items-center justify-center rounded bg-border opacity-0 hover:opacity-100 transition-opacity">
+              <div className={`absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 transition-colors ${isResizing ? "bg-primary" : "bg-transparent group-hover:bg-primary/50"}`} />
+              <div className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-5 items-center justify-center rounded-full bg-muted border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                 <GripVertical className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
