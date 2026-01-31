@@ -50,9 +50,13 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
 
   // Handle wine link clicks
   const handleWineClick = (wineId: string) => {
+    console.log("Wine link clicked:", wineId, "Map size:", wineMap.size);
     const wine = wineMap.get(wineId);
+    console.log("Found wine:", wine?.nameKr);
     if (wine) {
       onSelectWine(wine);
+    } else {
+      console.warn("Wine not found in map for ID:", wineId);
     }
   };
 
@@ -243,29 +247,32 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 {msg.role === "user" ? (
                   <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5 [&_strong]:font-bold [&_strong]:text-foreground">
+                  <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => {
                           if (href?.startsWith("wine:")) {
                             const wineId = href.replace("wine:", "");
                             return (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleWineClick(wineId);
-                                }}
-                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer inline"
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleWineClick(wineId)}
+                                onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
+                                className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
                                 data-testid={`wine-link-${wineId}`}
                               >
                                 {children}
-                              </button>
+                              </span>
                             );
                           }
-                          return <a href={href}>{children}</a>;
+                          return <a href={href} className="text-primary underline">{children}</a>;
                         },
+                        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        h2: ({ children }) => <h2 className="text-base font-semibold mt-4 mb-2">{children}</h2>,
+                        p: ({ children }) => <p className="my-2">{children}</p>,
+                        ul: ({ children }) => <ul className="my-2 pl-4 list-disc">{children}</ul>,
+                        li: ({ children }) => <li className="my-1">{children}</li>,
                       }}
                     >
                       {msg.content}
@@ -284,29 +291,32 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
               </div>
               <div className="max-w-[80%] rounded-lg bg-muted p-3">
                 {streamedContent ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5 [&_strong]:font-bold [&_strong]:text-foreground">
+                  <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => {
                           if (href?.startsWith("wine:")) {
                             const wineId = href.replace("wine:", "");
                             return (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleWineClick(wineId);
-                                }}
-                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer inline"
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleWineClick(wineId)}
+                                onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
+                                className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
                                 data-testid={`wine-link-${wineId}`}
                               >
                                 {children}
-                              </button>
+                              </span>
                             );
                           }
-                          return <a href={href}>{children}</a>;
+                          return <a href={href} className="text-primary underline">{children}</a>;
                         },
+                        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        h2: ({ children }) => <h2 className="text-base font-semibold mt-4 mb-2">{children}</h2>,
+                        p: ({ children }) => <p className="my-2">{children}</p>,
+                        ul: ({ children }) => <ul className="my-2 pl-4 list-disc">{children}</ul>,
+                        li: ({ children }) => <li className="my-1">{children}</li>,
                       }}
                     >
                       {streamedContent}
