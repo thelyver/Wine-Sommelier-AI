@@ -246,32 +246,30 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-sidebar p-4">
+      <div className="flex items-center justify-between border-b border-border bg-primary p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
-            <Sparkles className="h-5 w-5 text-accent-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-foreground/20">
+            <Sparkles className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold text-sidebar-foreground">AI 소믈리에</h3>
-            <p className="text-xs text-sidebar-foreground/70">와인 추천 전문가</p>
+            <h3 className="font-semibold text-primary-foreground">AI 소믈리에</h3>
+            <p className="text-xs text-primary-foreground/70">와인 추천 전문가</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="secondary"
             size="sm"
             onClick={() => createConversation.mutate()}
-            className="gap-1 bg-white/90 text-gray-800 hover:bg-white dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
+            className="gap-1 bg-white text-primary hover:bg-white/90"
             data-testid="button-new-chat-header"
           >
             <Plus className="h-4 w-4" />
             새 대화
           </Button>
           <Button
-            variant="ghost"
             size="icon"
             onClick={onClose}
-            className="text-white hover:bg-white/20"
+            className="bg-transparent text-primary-foreground hover:bg-primary-foreground/20"
             data-testid="button-close-chat"
           >
             <X className="h-5 w-5" />
