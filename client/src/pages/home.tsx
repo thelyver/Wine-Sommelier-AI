@@ -57,6 +57,29 @@ export default function Home() {
     document.addEventListener("mouseup", handleMouseUp);
   }, [chatWidth]);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    
+    const startX = e.touches[0].clientX;
+    const startWidth = chatWidth;
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      const delta = startX - e.touches[0].clientX;
+      const newWidth = Math.min(Math.max(startWidth + delta, 320), 800);
+      setChatWidth(newWidth);
+    };
+    
+    const handleTouchEnd = () => {
+      setIsResizing(false);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+    
+    document.addEventListener("touchmove", handleTouchMove, { passive: false });
+    document.addEventListener("touchend", handleTouchEnd);
+  }, [chatWidth]);
+
   const { data: wines = [], isLoading } = useQuery<WineType[]>({
     queryKey: ["/api/wines", filters, searchQuery],
     queryFn: async () => {
@@ -312,26 +335,37 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Chat Panel - Resizable */}
+        {/* Chat Panel - Mobile: Full screen overlay, Desktop: Side panel */}
         {showChat && (
-          <aside 
-            className="relative flex-shrink-0 border-l border-border bg-card h-full"
-            style={{ width: `${chatWidth}px` }}
-          >
-            {/* Resize Handle */}
-            <div
-              ref={resizeRef}
-              onMouseDown={handleMouseDown}
-              className={`absolute -left-2 top-0 bottom-0 w-4 cursor-ew-resize z-10 group`}
-              data-testid="resize-handle"
+          <>
+            {/* Mobile/Tablet Full Screen */}
+            <aside 
+              className="fixed inset-0 z-50 bg-card md:hidden"
             >
-              <div className={`absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 transition-colors ${isResizing ? "bg-primary" : "bg-transparent group-hover:bg-primary/50"}`} />
-              <div className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-5 items-center justify-center rounded-full bg-muted border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              <SommelierChat onClose={() => setShowChat(false)} onSelectWine={setSelectedWine} />
+            </aside>
+
+            {/* Desktop Side Panel - Resizable */}
+            <aside 
+              className="relative hidden md:block flex-shrink-0 border-l border-border bg-card h-full"
+              style={{ width: `${chatWidth}px` }}
+            >
+              {/* Resize Handle */}
+              <div
+                ref={resizeRef}
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
+                className={`absolute -left-2 top-0 bottom-0 w-4 cursor-ew-resize z-10 group touch-none`}
+                data-testid="resize-handle"
+              >
+                <div className={`absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 transition-colors ${isResizing ? "bg-primary" : "bg-transparent group-hover:bg-primary/50"}`} />
+                <div className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-5 items-center justify-center rounded-full bg-muted border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
-            </div>
-            <SommelierChat onClose={() => setShowChat(false)} onSelectWine={setSelectedWine} />
-          </aside>
+              <SommelierChat onClose={() => setShowChat(false)} onSelectWine={setSelectedWine} />
+            </aside>
+          </>
         )}
       </div>
 
