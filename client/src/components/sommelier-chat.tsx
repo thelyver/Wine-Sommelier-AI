@@ -145,7 +145,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [messages, streamedContent]);
 
@@ -181,7 +181,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {/* Welcome Message */}
           {messages.length === 0 && !isStreaming && (
@@ -342,6 +342,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
               </div>
             </div>
           )}
+          <div ref={scrollRef} />
         </div>
       </ScrollArea>
 
