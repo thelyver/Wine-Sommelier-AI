@@ -221,10 +221,79 @@ export async function registerRoutes(
     }
   });
 
+  // Get all conversations
+  app.get("/api/sommelier/conversations", async (_req: Request, res: Response) => {
+    try {
+      const allConversations = await storage.getAllConversations();
+      res.json(allConversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  // Create new conversation
+  app.post("/api/sommelier/conversations", async (req: Request, res: Response) => {
+    try {
+      const { title } = req.body;
+      const conversation = await storage.createConversation(title || "새 대화");
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  // Delete conversation
+  app.delete("/api/sommelier/conversations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      await storage.deleteConversation(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "Failed to delete conversation" });
+    }
+  });
+
+  // Update conversation title
+  app.patch("/api/sommelier/conversations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      const { title } = req.body;
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      const conversation = await storage.updateConversationTitle(id, title);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      res.status(500).json({ error: "Failed to update conversation" });
+    }
+  });
+
+  // Search conversations
+  app.get("/api/sommelier/search", async (req: Request, res: Response) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ error: "Search query is required" });
+      }
+      const results = await storage.searchConversations(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching conversations:", error);
+      res.status(500).json({ error: "Failed to search conversations" });
+    }
+  });
+
   // Get messages for a conversation (with path parameter)
   app.get("/api/sommelier/messages/:conversationId", async (req: Request, res: Response) => {
     try {
-      const conversationId = parseInt(req.params.conversationId);
+      const conversationId = parseInt(req.params.conversationId as string);
       if (isNaN(conversationId)) {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }

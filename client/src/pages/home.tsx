@@ -288,7 +288,7 @@ export default function Home() {
 
         {/* Chat Sidebar */}
         {showChat && (
-          <aside className="fixed right-0 top-0 z-40 h-screen w-96 border-l border-border bg-card shadow-xl">
+          <aside className="fixed right-0 top-0 z-40 h-screen w-[480px] border-l border-border bg-card shadow-xl">
             <SommelierChat onClose={() => setShowChat(false)} onSelectWine={setSelectedWine} />
           </aside>
         )}

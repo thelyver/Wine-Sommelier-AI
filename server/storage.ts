@@ -63,6 +63,11 @@ export interface IStorage {
   // Conversations
   getOrCreateConversation(): Promise<Conversation>;
   getConversationById(id: number): Promise<Conversation | undefined>;
+  getAllConversations(): Promise<Conversation[]>;
+  createConversation(title: string): Promise<Conversation>;
+  deleteConversation(id: number): Promise<void>;
+  updateConversationTitle(id: number, title: string): Promise<Conversation | undefined>;
+  searchConversations(query: string): Promise<{ conversation: Conversation; matchedMessages: Message[] }[]>;
   
   // Messages
   getMessagesByConversationId(conversationId: number): Promise<Message[]>;
@@ -188,6 +193,58 @@ class DatabaseStorage implements IStorage {
   async getConversationById(id: number): Promise<Conversation | undefined> {
     const result = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
     return result[0];
+  }
+
+  async getAllConversations(): Promise<Conversation[]> {
+    return db.select().from(conversations).orderBy(sql`created_at DESC`);
+  }
+
+  async createConversation(title: string): Promise<Conversation> {
+    const result = await db.insert(conversations).values({ title }).returning();
+    return result[0];
+  }
+
+  async deleteConversation(id: number): Promise<void> {
+    await db.delete(conversations).where(eq(conversations.id, id));
+  }
+
+  async updateConversationTitle(id: number, title: string): Promise<Conversation | undefined> {
+    const result = await db
+      .update(conversations)
+      .set({ title })
+      .where(eq(conversations.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async searchConversations(query: string): Promise<{ conversation: Conversation; matchedMessages: Message[] }[]> {
+    // Search messages that contain the query
+    const matchedMessages = await db
+      .select()
+      .from(messages)
+      .where(ilike(messages.content, `%${query}%`))
+      .orderBy(sql`created_at DESC`);
+
+    // Group by conversation and fetch conversation details
+    const conversationMap = new Map<number, Message[]>();
+    for (const msg of matchedMessages) {
+      if (!conversationMap.has(msg.conversationId)) {
+        conversationMap.set(msg.conversationId, []);
+      }
+      conversationMap.get(msg.conversationId)!.push(msg);
+    }
+
+    // Fetch conversation details
+    const results: { conversation: Conversation; matchedMessages: Message[] }[] = [];
+    const entries = Array.from(conversationMap.entries());
+    for (const [convId, msgs] of entries) {
+      const conv = await this.getConversationById(convId);
+      if (conv) {
+        results.push({ conversation: conv, matchedMessages: msgs });
+      }
+    }
+
+    return results;
   }
 
   async getMessagesByConversationId(conversationId: number): Promise<Message[]> {

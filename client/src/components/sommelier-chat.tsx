@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Send, Wine, Sparkles, Loader2, User } from "lucide-react";
+import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import ReactMarkdown from "react-markdown";
@@ -27,19 +28,80 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const userMessageRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // Get or create conversation
-  const { data: conversation } = useQuery<Conversation>({
-    queryKey: ["/api/sommelier/conversation"],
+  // Get all conversations
+  const { data: allConversations = [] } = useQuery<Conversation[]>({
+    queryKey: ["/api/sommelier/conversations"],
   });
 
-  // Get messages
+  // Get or create conversation (fallback for initial load)
+  const { data: defaultConversation } = useQuery<Conversation>({
+    queryKey: ["/api/sommelier/conversation"],
+    enabled: !activeConversationId,
+  });
+
+  // Set active conversation when default loads
+  useEffect(() => {
+    if (defaultConversation && !activeConversationId) {
+      setActiveConversationId(defaultConversation.id);
+    }
+  }, [defaultConversation, activeConversationId]);
+
+  const conversation = allConversations.find(c => c.id === activeConversationId) || defaultConversation;
+
+  // Get messages for active conversation
   const { data: messages = [] } = useQuery<Message[]>({
-    queryKey: ["/api/sommelier/messages", conversation?.id],
-    enabled: !!conversation?.id,
+    queryKey: ["/api/sommelier/messages", activeConversationId],
+    enabled: !!activeConversationId,
+  });
+
+  // Search conversations
+  const { data: searchResults = [] } = useQuery<{ conversation: Conversation; matchedMessages: Message[] }[]>({
+    queryKey: ["/api/sommelier/search", searchQuery],
+    queryFn: async () => {
+      if (!searchQuery.trim()) return [];
+      const res = await fetch(`/api/sommelier/search?q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error("Search failed");
+      return res.json();
+    },
+    enabled: !!searchQuery.trim(),
+  });
+
+  // Create new conversation mutation
+  const createConversation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/sommelier/conversations", { title: "새 대화" });
+      return res.json();
+    },
+    onSuccess: (newConv: Conversation) => {
+      setActiveConversationId(newConv.id);
+      queryClient.invalidateQueries({ queryKey: ["/api/sommelier/conversations"] });
+    },
+  });
+
+  // Delete conversation mutation
+  const deleteConversation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/sommelier/conversations/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sommelier/conversations"] });
+      // If deleted active conversation, switch to another or create new
+      if (allConversations.length > 1) {
+        const remaining = allConversations.filter(c => c.id !== activeConversationId);
+        if (remaining.length > 0) {
+          setActiveConversationId(remaining[0].id);
+        }
+      } else {
+        createConversation.mutate();
+      }
+    },
   });
 
   // Get all wines for linking (no filters to get complete wine list)
@@ -176,32 +238,157 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     "5만원대 선물용 와인 뭐가 좋을까?",
   ];
 
+  const formatDate = (date: Date) => {
+    const d = new Date(date);
+    return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+  };
+
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-sidebar p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
-            <Sparkles className="h-5 w-5 text-accent-foreground" />
+    <div className="flex h-full">
+      {/* Conversation History Sidebar */}
+      {showHistory && (
+        <div className="w-56 border-r border-border bg-muted/30 flex flex-col">
+          <div className="p-3 border-b border-border">
+            <Button
+              onClick={() => createConversation.mutate()}
+              className="w-full gap-2"
+              size="sm"
+              data-testid="button-new-chat"
+            >
+              <Plus className="h-4 w-4" />
+              새 대화
+            </Button>
           </div>
-          <div>
-            <h3 className="font-semibold text-sidebar-foreground">AI 소믈리에</h3>
-            <p className="text-xs text-sidebar-foreground/70">와인 추천 전문가</p>
+          
+          {/* Search */}
+          <div className="p-3 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="대화 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 text-sm"
+                data-testid="input-search-conversations"
+              />
+            </div>
+          </div>
+
+          {/* Conversation List */}
+          <ScrollArea className="flex-1">
+            <div className="p-2 space-y-1">
+              {searchQuery.trim() ? (
+                // Show search results
+                searchResults.length > 0 ? (
+                  searchResults.map(({ conversation: conv }) => (
+                    <div
+                      key={conv.id}
+                      onClick={() => {
+                        setActiveConversationId(conv.id);
+                        setSearchQuery("");
+                      }}
+                      className={`p-2 rounded-md cursor-pointer text-sm hover-elevate ${
+                        conv.id === activeConversationId ? "bg-accent" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{conv.title}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {formatDate(conv.createdAt)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground p-2">검색 결과 없음</p>
+                )
+              ) : (
+                // Show all conversations
+                allConversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`group p-2 rounded-md cursor-pointer text-sm hover-elevate ${
+                      conv.id === activeConversationId ? "bg-accent" : ""
+                    }`}
+                  >
+                    <div 
+                      onClick={() => setActiveConversationId(conv.id)}
+                      className="flex items-center gap-2"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1">{conv.title}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation.mutate(conv.id);
+                        }}
+                        data-testid={`button-delete-conversation-${conv.id}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatDate(conv.createdAt)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border bg-sidebar p-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-sidebar-foreground"
+              data-testid="button-toggle-history"
+            >
+              {showHistory ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            </Button>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
+              <Sparkles className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sidebar-foreground">AI 소믈리에</h3>
+              <p className="text-xs text-sidebar-foreground/70">와인 추천 전문가</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => createConversation.mutate()}
+              className="text-sidebar-foreground"
+              data-testid="button-new-chat-header"
+              title="새 대화"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="text-sidebar-foreground"
+              data-testid="button-close-chat"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="text-sidebar-foreground"
-          data-testid="button-close-chat"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+        {/* Messages */}
+        <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {/* Welcome Message */}
           {messages.length === 0 && !isStreaming && (
@@ -414,6 +601,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
           </Button>
         </div>
       </form>
+      </div>
     </div>
   );
 }
