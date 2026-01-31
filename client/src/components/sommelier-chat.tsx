@@ -31,17 +31,22 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     enabled: !!conversation?.id,
   });
 
-  // Get all wines for linking
-  const { data: wines = [] } = useQuery<WineType[]>({
-    queryKey: ["/api/wines"],
+  // Get all wines for linking (no filters to get complete wine list)
+  const { data: allWines = [] } = useQuery<WineType[]>({
+    queryKey: ["/api/wines/all"],
+    queryFn: async () => {
+      const res = await fetch("/api/wines?limit=500");
+      if (!res.ok) throw new Error("Failed to fetch wines");
+      return res.json();
+    },
   });
 
   // Create wine lookup map
   const wineMap = useMemo(() => {
     const map = new Map<string, WineType>();
-    wines.forEach((wine) => map.set(wine.id, wine));
+    allWines.forEach((wine) => map.set(wine.id, wine));
     return map;
-  }, [wines]);
+  }, [allWines]);
 
   // Handle wine link clicks
   const handleWineClick = (wineId: string) => {
@@ -238,7 +243,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 {msg.role === "user" ? (
                   <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5 [&_strong]:font-bold [&_strong]:text-foreground">
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => {
@@ -246,8 +251,13 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                             const wineId = href.replace("wine:", "");
                             return (
                               <button
-                                onClick={() => handleWineClick(wineId)}
-                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer"
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleWineClick(wineId);
+                                }}
+                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer inline"
                                 data-testid={`wine-link-${wineId}`}
                               >
                                 {children}
@@ -274,7 +284,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
               </div>
               <div className="max-w-[80%] rounded-lg bg-muted p-3">
                 {streamedContent ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5 [&_strong]:font-bold [&_strong]:text-foreground">
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => {
@@ -282,8 +292,13 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                             const wineId = href.replace("wine:", "");
                             return (
                               <button
-                                onClick={() => handleWineClick(wineId)}
-                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer"
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleWineClick(wineId);
+                                }}
+                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer inline"
                                 data-testid={`wine-link-${wineId}`}
                               >
                                 {children}
