@@ -1,14 +1,18 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight, GripVertical } from "lucide-react";
+import { useLocation } from "wouter";
+import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { WineCard } from "@/components/wine-card";
 import { WineFilters } from "@/components/wine-filters";
 import { SommelierChat } from "@/components/sommelier-chat";
 import { WineDetailModal } from "@/components/wine-detail-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthModal } from "@/components/auth-modal";
+import { useAuth } from "@/contexts/auth-context";
 import type { Wine as WineType } from "@shared/schema";
 
 const categoryPills = [
@@ -21,11 +25,14 @@ const categoryPills = [
 
 export default function Home() {
   const [showChat, setShowChat] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWine, setSelectedWine] = useState<WineType | null>(null);
   const [chatWidth, setChatWidth] = useState(480);
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const [, setLocation] = useLocation();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const [filters, setFilters] = useState<{
     type?: string;
     nation?: string;
@@ -159,6 +166,49 @@ export default function Home() {
                 <Sparkles className="h-4 w-4" />
                 <span className="hidden sm:inline">AI 소믈리에</span>
               </Button>
+
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" data-testid="button-user-menu">
+                      <User className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <div className="px-2 py-1.5 text-sm">
+                      <p className="font-medium">{user?.name || user?.email}</p>
+                      {user?.role === "admin" && (
+                        <Badge variant="secondary" className="mt-1 text-xs">관리자</Badge>
+                      )}
+                    </div>
+                    <DropdownMenuSeparator />
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+                          <Shield className="mr-2 h-4 w-4" />
+                          관리자 페이지
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={() => logout()} data-testid="menu-logout">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      로그아웃
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAuthModal(true)}
+                  className="gap-2"
+                  data-testid="button-login"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">로그인</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -373,6 +423,12 @@ export default function Home() {
       <WineDetailModal
         wine={selectedWine}
         onClose={() => setSelectedWine(null)}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
       />
     </div>
   );
