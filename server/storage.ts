@@ -9,6 +9,7 @@ import {
   priceRanges,
   conversations,
   messages,
+  users,
   type Wine,
   type InsertWine,
   type OccasionType,
@@ -21,6 +22,9 @@ import {
   type InsertConversation,
   type Message,
   type InsertMessage,
+  type User,
+  type InsertUser,
+  type SafeUser,
 } from "@shared/schema";
 
 // Smart search filter interface for AI queries
@@ -61,14 +65,22 @@ export interface IStorage {
   // Wine Occasions
   getWineOccasions(wineId: string): Promise<OccasionType[]>;
   
+  // Users
+  getUserById(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(data: { email: string; password: string; name?: string; role?: string }): Promise<User>;
+  getAllUsers(): Promise<SafeUser[]>;
+  updateUser(id: number, data: Partial<{ email: string; name: string; role: string }>): Promise<SafeUser | undefined>;
+  deleteUser(id: number): Promise<void>;
+  
   // Conversations
-  getOrCreateConversation(): Promise<Conversation>;
+  getOrCreateConversation(userId?: number): Promise<Conversation>;
   getConversationById(id: number): Promise<Conversation | undefined>;
-  getAllConversations(): Promise<Conversation[]>;
-  createConversation(title: string): Promise<Conversation>;
+  getAllConversations(userId?: number): Promise<Conversation[]>;
+  createConversation(title: string, userId?: number): Promise<Conversation>;
   deleteConversation(id: number): Promise<void>;
   updateConversationTitle(id: number, title: string): Promise<Conversation | undefined>;
-  searchConversations(query: string): Promise<{ conversation: Conversation; matchedMessages: Message[] }[]>;
+  searchConversations(query: string, userId?: number): Promise<{ conversation: Conversation; matchedMessages: Message[] }[]>;
   
   // Messages
   getMessagesByConversationId(conversationId: number): Promise<Message[]>;
@@ -182,11 +194,64 @@ class DatabaseStorage implements IStorage {
     return result.map(r => r.occasion_types);
   }
 
-  async getOrCreateConversation(): Promise<Conversation> {
-    // Get the most recent conversation or create one
+  // User methods
+  async getUserById(id: number): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
+  }
+
+  async createUser(data: { email: string; password: string; name?: string; role?: string }): Promise<User> {
+    const result = await db.insert(users).values({
+      email: data.email,
+      password: data.password,
+      name: data.name || null,
+      role: data.role || "user",
+    }).returning();
+    return result[0];
+  }
+
+  async getAllUsers(): Promise<SafeUser[]> {
+    const result = await db.select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(desc(users.createdAt));
+    return result;
+  }
+
+  async updateUser(id: number, data: Partial<{ email: string; name: string; role: string }>): Promise<SafeUser | undefined> {
+    const result = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        createdAt: users.createdAt,
+      });
+    return result[0];
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async getOrCreateConversation(userId?: number): Promise<Conversation> {
+    // Get the most recent conversation for this user or create one
+    const conditions = userId ? eq(conversations.userId, userId) : sql`${conversations.userId} IS NULL`;
     const existing = await db
       .select()
       .from(conversations)
+      .where(conditions)
       .orderBy(sql`created_at DESC`)
       .limit(1);
 
@@ -196,7 +261,7 @@ class DatabaseStorage implements IStorage {
 
     const result = await db
       .insert(conversations)
-      .values({ title: "Wine Consultation" })
+      .values({ title: "Wine Consultation", userId: userId || null })
       .returning();
     return result[0];
   }
@@ -206,12 +271,15 @@ class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getAllConversations(): Promise<Conversation[]> {
+  async getAllConversations(userId?: number): Promise<Conversation[]> {
+    if (userId) {
+      return db.select().from(conversations).where(eq(conversations.userId, userId)).orderBy(sql`created_at DESC`);
+    }
     return db.select().from(conversations).orderBy(sql`created_at DESC`);
   }
 
-  async createConversation(title: string): Promise<Conversation> {
-    const result = await db.insert(conversations).values({ title }).returning();
+  async createConversation(title: string, userId?: number): Promise<Conversation> {
+    const result = await db.insert(conversations).values({ title, userId: userId || null }).returning();
     return result[0];
   }
 
@@ -228,12 +296,25 @@ class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async searchConversations(query: string): Promise<{ conversation: Conversation; matchedMessages: Message[] }[]> {
+  async searchConversations(query: string, userId?: number): Promise<{ conversation: Conversation; matchedMessages: Message[] }[]> {
+    // Get user's conversations first if userId provided
+    let userConversationIds: number[] | null = null;
+    if (userId) {
+      const userConvs = await db.select({ id: conversations.id }).from(conversations).where(eq(conversations.userId, userId));
+      userConversationIds = userConvs.map(c => c.id);
+      if (userConversationIds.length === 0) return [];
+    }
+
     // Search messages that contain the query
+    const baseCondition = ilike(messages.content, `%${query}%`);
+    const conditions = userConversationIds 
+      ? and(baseCondition, inArray(messages.conversationId, userConversationIds))
+      : baseCondition;
+
     const matchedMessages = await db
       .select()
       .from(messages)
-      .where(ilike(messages.content, `%${query}%`))
+      .where(conditions)
       .orderBy(sql`created_at DESC`);
 
     // Group by conversation and fetch conversation details
