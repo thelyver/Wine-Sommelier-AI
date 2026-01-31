@@ -147,7 +147,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [messages, streamedContent]);
+  }, [messages, streamedContent, isStreaming]);
 
   const suggestionQuestions = [
     "오늘 혼술하려는데 레드 와인 추천해줘",
