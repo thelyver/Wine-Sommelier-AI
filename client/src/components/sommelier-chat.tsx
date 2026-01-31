@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Send, Wine, Sparkles, Loader2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
+import ReactMarkdown from "react-markdown";
 import type { Wine as WineType, Message, Conversation } from "@shared/schema";
 
 interface SommelierChatProps {
@@ -29,6 +30,26 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     queryKey: ["/api/sommelier/messages", conversation?.id],
     enabled: !!conversation?.id,
   });
+
+  // Get all wines for linking
+  const { data: wines = [] } = useQuery<WineType[]>({
+    queryKey: ["/api/wines"],
+  });
+
+  // Create wine lookup map
+  const wineMap = useMemo(() => {
+    const map = new Map<string, WineType>();
+    wines.forEach((wine) => map.set(wine.id, wine));
+    return map;
+  }, [wines]);
+
+  // Handle wine link clicks
+  const handleWineClick = (wineId: string) => {
+    const wine = wineMap.get(wineId);
+    if (wine) {
+      onSelectWine(wine);
+    }
+  };
 
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
@@ -214,7 +235,33 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 }`}
                 data-testid={`message-${msg.id}`}
               >
-                <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                {msg.role === "user" ? (
+                  <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
+                    <ReactMarkdown
+                      components={{
+                        a: ({ href, children }) => {
+                          if (href?.startsWith("wine:")) {
+                            const wineId = href.replace("wine:", "");
+                            return (
+                              <button
+                                onClick={() => handleWineClick(wineId)}
+                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer"
+                                data-testid={`wine-link-${wineId}`}
+                              >
+                                {children}
+                              </button>
+                            );
+                          }
+                          return <a href={href}>{children}</a>;
+                        },
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -226,14 +273,36 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 <Wine className="h-4 w-4 text-accent-foreground" />
               </div>
               <div className="max-w-[80%] rounded-lg bg-muted p-3">
-                <p className="whitespace-pre-wrap text-sm">
-                  {streamedContent || (
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      생각중...
-                    </span>
-                  )}
-                </p>
+                {streamedContent ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
+                    <ReactMarkdown
+                      components={{
+                        a: ({ href, children }) => {
+                          if (href?.startsWith("wine:")) {
+                            const wineId = href.replace("wine:", "");
+                            return (
+                              <button
+                                onClick={() => handleWineClick(wineId)}
+                                className="text-primary underline hover:text-primary/80 font-medium cursor-pointer"
+                                data-testid={`wine-link-${wineId}`}
+                              >
+                                {children}
+                              </button>
+                            );
+                          }
+                          return <a href={href}>{children}</a>;
+                        },
+                      }}
+                    >
+                      {streamedContent}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <span className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    생각중...
+                  </span>
+                )}
               </div>
             </div>
           )}
