@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, or, ilike, sql, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, or, ilike, sql, inArray, desc, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import {
   wines,
@@ -53,6 +53,7 @@ export interface IStorage {
   insertWine(wine: InsertWine): Promise<Wine>;
   insertWines(wines: InsertWine[]): Promise<void>;
   getWineCount(): Promise<number>;
+  getFeaturedWines(limit?: number): Promise<Wine[]>;
   
   // Occasion Types
   getOccasionTypes(): Promise<OccasionType[]>;
@@ -156,6 +157,16 @@ class DatabaseStorage implements IStorage {
   async getWineCount(): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` }).from(wines);
     return Number(result[0]?.count || 0);
+  }
+
+  async getFeaturedWines(limit = 10): Promise<Wine[]> {
+    // Get wines with Vivino rating, sorted by rating descending
+    return db
+      .select()
+      .from(wines)
+      .where(isNotNull(wines.vivinoRating))
+      .orderBy(desc(wines.vivinoRating))
+      .limit(limit);
   }
 
   async getOccasionTypes(): Promise<OccasionType[]> {

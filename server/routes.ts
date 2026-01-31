@@ -174,6 +174,18 @@ export async function registerRoutes(
     }
   });
 
+  // Get featured wines (sorted by Vivino rating)
+  app.get("/api/wines/featured", async (req: Request, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const wines = await storage.getFeaturedWines(limit);
+      res.json(wines);
+    } catch (error) {
+      console.error("Error fetching featured wines:", error);
+      res.status(500).json({ error: "Failed to fetch featured wines" });
+    }
+  });
+
   // Get single wine by ID
   app.get("/api/wines/:id", async (req: Request, res: Response) => {
     try {

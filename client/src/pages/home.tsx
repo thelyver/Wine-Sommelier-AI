@@ -97,10 +97,10 @@ export default function Home() {
   });
 
   const { data: featuredWines = [] } = useQuery<WineType[]>({
-    queryKey: ["/api/wines", "featured"],
+    queryKey: ["/api/wines/featured"],
     queryFn: async () => {
-      const res = await fetch(`/api/wines?limit=10`);
-      if (!res.ok) throw new Error("Failed to fetch wines");
+      const res = await fetch(`/api/wines/featured?limit=10`);
+      if (!res.ok) throw new Error("Failed to fetch featured wines");
       return res.json();
     },
   });
