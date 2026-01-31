@@ -1,10 +1,12 @@
-import { eq, and, gte, lte, or, ilike, sql } from "drizzle-orm";
+import { eq, and, gte, lte, or, ilike, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   wines,
   occasionTypes,
   wineOccasions,
   keywordLib,
+  tasteLevels,
+  priceRanges,
   conversations,
   messages,
   type Wine,
@@ -13,11 +15,26 @@ import {
   type InsertOccasionType,
   type WineOccasion,
   type InsertWineOccasion,
+  type TasteLevel,
+  type PriceRange,
   type Conversation,
   type InsertConversation,
   type Message,
   type InsertMessage,
 } from "@shared/schema";
+
+// Smart search filter interface for AI queries
+export interface SmartSearchFilters {
+  type?: string;
+  nation?: string;
+  occasionIds?: number[];
+  priceMin?: number;
+  priceMax?: number;
+  sweet?: { min?: number; max?: number };
+  acidity?: { min?: number; max?: number };
+  body?: { min?: number; max?: number };
+  tannin?: { min?: number; max?: number };
+}
 
 export interface WineFilters {
   type?: string;
@@ -54,6 +71,12 @@ export interface IStorage {
   // Wines for AI context
   getWinesForContext(limit?: number): Promise<Wine[]>;
   searchWinesByKeywords(keywords: string[]): Promise<Wine[]>;
+  
+  // Smart search for AI - keyword mapping
+  getAllTasteLevels(): Promise<TasteLevel[]>;
+  getAllPriceRanges(): Promise<PriceRange[]>;
+  getAllKeywords(): Promise<{ category: string; key: string; keywords: string[] | null }[]>;
+  smartSearchWines(filters: SmartSearchFilters, limit?: number): Promise<Wine[]>;
 }
 
 class DatabaseStorage implements IStorage {
@@ -203,6 +226,78 @@ class DatabaseStorage implements IStorage {
       .from(wines)
       .where(or(...conditions))
       .limit(20);
+  }
+
+  async getAllTasteLevels(): Promise<TasteLevel[]> {
+    return db.select().from(tasteLevels);
+  }
+
+  async getAllPriceRanges(): Promise<PriceRange[]> {
+    return db.select().from(priceRanges).orderBy(priceRanges.minPrice);
+  }
+
+  async getAllKeywords(): Promise<{ category: string; key: string; keywords: string[] | null }[]> {
+    return db.select({
+      category: keywordLib.category,
+      key: keywordLib.key,
+      keywords: keywordLib.keywords,
+    }).from(keywordLib);
+  }
+
+  async smartSearchWines(filters: SmartSearchFilters, limit = 30): Promise<Wine[]> {
+    const conditions = [];
+
+    if (filters.type) {
+      conditions.push(ilike(wines.type, `%${filters.type}%`));
+    }
+    if (filters.nation) {
+      conditions.push(ilike(wines.nation, `%${filters.nation}%`));
+    }
+    if (filters.priceMin !== undefined) {
+      conditions.push(gte(wines.price, filters.priceMin));
+    }
+    if (filters.priceMax !== undefined) {
+      conditions.push(lte(wines.price, filters.priceMax));
+    }
+    if (filters.sweet?.min !== undefined) {
+      conditions.push(gte(wines.sweet, filters.sweet.min));
+    }
+    if (filters.sweet?.max !== undefined) {
+      conditions.push(lte(wines.sweet, filters.sweet.max));
+    }
+    if (filters.acidity?.min !== undefined) {
+      conditions.push(gte(wines.acidity, filters.acidity.min));
+    }
+    if (filters.acidity?.max !== undefined) {
+      conditions.push(lte(wines.acidity, filters.acidity.max));
+    }
+    if (filters.body?.min !== undefined) {
+      conditions.push(gte(wines.body, filters.body.min));
+    }
+    if (filters.body?.max !== undefined) {
+      conditions.push(lte(wines.body, filters.body.max));
+    }
+    if (filters.tannin?.min !== undefined) {
+      conditions.push(gte(wines.tannin, filters.tannin.min));
+    }
+    if (filters.tannin?.max !== undefined) {
+      conditions.push(lte(wines.tannin, filters.tannin.max));
+    }
+    if (filters.occasionIds && filters.occasionIds.length > 0) {
+      const wineIdsWithOccasion = db
+        .select({ wineId: wineOccasions.wineId })
+        .from(wineOccasions)
+        .where(inArray(wineOccasions.occasionId, filters.occasionIds));
+      conditions.push(sql`${wines.id} IN (${wineIdsWithOccasion})`);
+    }
+
+    const query = db.select().from(wines);
+    
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).limit(limit);
+    }
+    
+    return query.limit(limit);
   }
 }
 
