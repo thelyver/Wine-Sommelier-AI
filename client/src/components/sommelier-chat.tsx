@@ -251,13 +251,17 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => {
-                          if (href?.startsWith("wine:")) {
-                            const wineId = href.replace("wine:", "");
+                          if (href && href.startsWith("#wine-")) {
+                            const wineId = href.replace("#wine-", "");
                             return (
                               <span
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => handleWineClick(wineId)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleWineClick(wineId);
+                                }}
                                 onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
                                 className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
                                 data-testid={`wine-link-${wineId}`}
@@ -295,13 +299,17 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => {
-                          if (href?.startsWith("wine:")) {
-                            const wineId = href.replace("wine:", "");
+                          if (href && href.startsWith("#wine-")) {
+                            const wineId = href.replace("#wine-", "");
                             return (
                               <span
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => handleWineClick(wineId)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleWineClick(wineId);
+                                }}
                                 onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
                                 className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
                                 data-testid={`wine-link-${wineId}`}
