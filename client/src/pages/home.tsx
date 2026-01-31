@@ -325,12 +325,22 @@ export default function Home() {
               <div className="container mx-auto px-4">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-xl font-bold">인기 와인</h2>
-                  <Button variant="ghost" size="sm" className="gap-1 text-primary" data-testid="button-view-all">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-1 text-primary" 
+                    onClick={() => {
+                      setFilters({});
+                      setSearchQuery("");
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }}
+                    data-testid="button-view-all"
+                  >
                     전체 보기 <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                  {featuredWines.slice(0, 8).map((wine) => (
+                  {featuredWines.slice(0, 10).map((wine) => (
                     <div key={wine.id} className="flex-none w-56">
                       <WineCard
                         wine={wine}
