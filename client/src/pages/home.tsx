@@ -104,6 +104,8 @@ export default function Home() {
     isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: ["/api/wines", filters, searchQuery],
+    staleTime: 0,
+    refetchOnMount: true,
     queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
       if (filters.type) params.append("type", filters.type);
@@ -277,7 +279,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className={`flex h-[calc(100vh-4rem)] ${isResizing ? "select-none" : ""}`}>
+      <div className={`flex h-[calc(var(--vh,1vh)*100-4rem)] ${isResizing ? "select-none" : ""}`}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Hero Banner - wine.com Style */}
