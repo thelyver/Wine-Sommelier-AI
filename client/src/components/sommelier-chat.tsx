@@ -7,11 +7,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import type { Wine as WineType, Message, Conversation } from "@shared/schema";
 
 interface SommelierChatProps {
   onClose: () => void;
   onSelectWine: (wine: WineType) => void;
+}
+
+// Preprocess markdown to fix bold markers that don't render properly
+function preprocessMarkdown(content: string): string {
+  // Replace **text** patterns that might not render with <strong> tags
+  // This handles cases where special characters inside bold markers cause issues
+  return content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
 export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
@@ -263,6 +271,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                   <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeRaw]}
                       components={{
                         a: ({ href, children }) => {
                           if (href && href.startsWith("#wine-")) {
@@ -293,7 +302,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                         li: ({ children }) => <li className="my-1">{children}</li>,
                       }}
                     >
-                      {msg.content}
+                      {preprocessMarkdown(msg.content)}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -327,6 +336,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                   <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeRaw]}
                       components={{
                         a: ({ href, children }) => {
                           if (href && href.startsWith("#wine-")) {
@@ -357,7 +367,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                         li: ({ children }) => <li className="my-1">{children}</li>,
                       }}
                     >
-                      {streamedContent}
+                      {preprocessMarkdown(streamedContent)}
                     </ReactMarkdown>
                   </div>
                 ) : (
