@@ -2,9 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Safari/iOS viewport height fix using custom --vh variable */
+/* Safari/iOS viewport height fix using custom --vh variable and dvh */
 html, body {
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: calc(var(--vh, 1vh) * 100);
 }
 
@@ -16,12 +17,26 @@ html, body {
 
 .min-h-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: calc(var(--vh, 1vh) * 100);
 }
 
 @supports (-webkit-touch-callout: none) {
   .min-h-screen {
     min-height: -webkit-fill-available;
+  }
+}
+
+/* Main content area height fix for Safari */
+.main-content-height {
+  height: calc(100vh - 4rem);
+  height: calc(100dvh - 4rem);
+  height: calc(var(--vh, 1vh) * 100 - 4rem);
+}
+
+@supports (-webkit-touch-callout: none) {
+  .main-content-height {
+    height: calc(-webkit-fill-available - 4rem);
   }
 }
 

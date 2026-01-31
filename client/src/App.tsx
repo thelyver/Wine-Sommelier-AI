@@ -25,12 +25,26 @@ function App() {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
+    
+    const debouncedSetVh = () => {
+      setTimeout(setVh, 100);
+    };
+    
     setVh();
     window.addEventListener('resize', setVh);
-    window.addEventListener('orientationchange', setVh);
+    window.addEventListener('orientationchange', debouncedSetVh);
+    
+    // For iOS Safari: also listen to scroll and focus events that can trigger address bar changes
+    window.addEventListener('scroll', setVh, { passive: true });
+    document.addEventListener('focusin', debouncedSetVh);
+    document.addEventListener('focusout', debouncedSetVh);
+    
     return () => {
       window.removeEventListener('resize', setVh);
-      window.removeEventListener('orientationchange', setVh);
+      window.removeEventListener('orientationchange', debouncedSetVh);
+      window.removeEventListener('scroll', setVh);
+      document.removeEventListener('focusin', debouncedSetVh);
+      document.removeEventListener('focusout', debouncedSetVh);
     };
   }, []);
 

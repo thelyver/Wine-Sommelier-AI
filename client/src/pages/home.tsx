@@ -279,7 +279,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className={`flex h-[calc(var(--vh,1vh)*100-4rem)] ${isResizing ? "select-none" : ""}`}>
+      <div className={`flex main-content-height ${isResizing ? "select-none" : ""}`}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Hero Banner - wine.com Style */}
