@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight } from "lucide-react";
+import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,9 @@ export default function Home() {
   const [showChat, setShowChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWine, setSelectedWine] = useState<WineType | null>(null);
+  const [chatWidth, setChatWidth] = useState(480);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState<{
     type?: string;
     nation?: string;
@@ -30,6 +33,29 @@ export default function Home() {
     priceMin?: number;
     priceMax?: number;
   }>({});
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    
+    const startX = e.clientX;
+    const startWidth = chatWidth;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = startX - e.clientX;
+      const newWidth = Math.min(Math.max(startWidth + delta, 320), 800);
+      setChatWidth(newWidth);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+    
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, [chatWidth]);
 
   const { data: wines = [], isLoading } = useQuery<WineType[]>({
     queryKey: ["/api/wines", filters, searchQuery],
@@ -115,9 +141,9 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex h-[calc(100vh-4rem)]">
         {/* Main Content */}
-        <main className={`flex-1 transition-all duration-300 ${showChat ? "mr-96" : ""}`}>
+        <main className="flex-1 overflow-y-auto">
           {/* Hero Banner - wine.com Style */}
           <section className="relative bg-gradient-to-r from-primary to-primary/80 py-12 text-primary-foreground">
             <div className="container mx-auto px-4">
@@ -286,9 +312,23 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Chat Sidebar */}
+        {/* Chat Panel - Resizable */}
         {showChat && (
-          <aside className="fixed right-0 top-0 z-40 h-screen w-[480px] border-l border-border bg-card shadow-xl">
+          <aside 
+            className="relative flex-shrink-0 border-l border-border bg-card h-full"
+            style={{ width: `${chatWidth}px` }}
+          >
+            {/* Resize Handle */}
+            <div
+              ref={resizeRef}
+              onMouseDown={handleMouseDown}
+              className={`absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-primary/50 transition-colors ${isResizing ? "bg-primary" : "bg-transparent"}`}
+              data-testid="resize-handle"
+            >
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-8 w-4 items-center justify-center rounded bg-border opacity-0 hover:opacity-100 transition-opacity">
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
             <SommelierChat onClose={() => setShowChat(false)} onSelectWine={setSelectedWine} />
           </aside>
         )}
