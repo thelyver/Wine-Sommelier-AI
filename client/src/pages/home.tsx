@@ -417,14 +417,13 @@ export default function Home() {
 
       {/* Floating AI Sommelier Button */}
       {!showChat && (
-        <Button
+        <button
           onClick={() => setShowChat(true)}
-          className="fixed bottom-6 left-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
-          size="icon"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center transition-colors"
           data-testid="button-floating-chat"
         >
           <Wine className="h-6 w-6" />
-        </Button>
+        </button>
       )}
 
       {/* Wine Detail Modal */}
