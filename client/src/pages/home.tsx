@@ -279,9 +279,9 @@ export default function Home() {
               backgroundPosition: 'center',
             }}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
             <div className="container mx-auto px-4 relative z-10">
-              <div className="max-w-2xl">
+              <div className="max-w-2xl bg-black/40 backdrop-blur-sm rounded-2xl p-8">
                 <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl drop-shadow-lg">
                   AI가 추천하는 와인
                 </h1>
