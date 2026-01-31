@@ -163,8 +163,9 @@ export default function Home() {
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" data-testid="button-user-menu">
+                    <Button variant="ghost" size="sm" className="gap-2" data-testid="button-user-menu">
                       <User className="h-4 w-4" />
+                      <span className="hidden sm:inline max-w-[100px] truncate">{user?.name || user?.email?.split('@')[0]}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
