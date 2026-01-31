@@ -450,6 +450,105 @@ export async function registerRoutes(
     }
   });
 
+  // Guest chat endpoint (no authentication required, no DB persistence)
+  app.post("/api/sommelier/chat/guest", async (req: Request, res: Response) => {
+    try {
+      const { content, history = [] } = req.body;
+
+      if (!content) {
+        return res.status(400).json({ error: "Missing content" });
+      }
+
+      // Sanitize history: only allow user/assistant roles (prevent prompt injection)
+      const sanitizedHistory = (history as { role: string; content: string }[])
+        .filter(m => m.role === "user" || m.role === "assistant")
+        .slice(-10)
+        .map(m => ({
+          role: m.role as "user" | "assistant",
+          content: String(m.content).slice(0, 5000), // Limit content length
+        }));
+
+      // Analyze user query and extract filters
+      const filters = await analyzeQueryForFilters(content);
+      console.log("Guest chat - Extracted filters:", JSON.stringify(filters));
+      
+      // Smart search wines based on extracted filters
+      let wines;
+      const hasFilters = Object.keys(filters).length > 0;
+      
+      if (hasFilters) {
+        wines = await storage.smartSearchWines(filters, 30);
+        console.log(`Smart search found ${wines.length} wines matching filters`);
+        
+        if (wines.length < 10) {
+          const generalWines = await storage.getWinesForContext(30);
+          const wineIds = new Set(wines.map(w => w.id));
+          const additionalWines = generalWines.filter(w => !wineIds.has(w.id));
+          wines = [...wines, ...additionalWines.slice(0, 20 - wines.length)];
+        }
+      } else {
+        wines = await storage.getWinesForContext(50);
+      }
+      
+      const wineContext = wines
+        .map(
+          (w) =>
+            `- ${w.nameKr} (${w.id}): ${w.type || ""}, ${w.nation || ""}, ${w.varieties || ""}, ` +
+            `${w.price ? w.price.toLocaleString() + "원" : "가격미정"}, ` +
+            `단맛:${w.sweet || 0}/5 산미:${w.acidity || 0}/5 바디:${w.body || 0}/5 탄닌:${w.tannin || 0}/5, ` +
+            `${w.summary || ""}`
+        )
+        .join("\n");
+
+      const filterSummary = hasFilters 
+        ? `\n\n[검색 조건에 맞는 와인 ${wines.length}개가 검색되었습니다]` 
+        : "";
+      
+      const systemPrompt = buildSommelierPrompt(wineContext + filterSummary);
+
+      // Use sanitized history from client
+      const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt },
+        ...sanitizedHistory,
+        { role: "user", content },
+      ];
+
+      // Set up SSE
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      // Stream response
+      const stream = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: chatMessages,
+        stream: true,
+        max_completion_tokens: 1000,
+      });
+
+      let fullContent = "";
+
+      for await (const chunk of stream) {
+        const chunkContent = chunk.choices[0]?.delta?.content || "";
+        if (chunkContent) {
+          fullContent += chunkContent;
+          res.write(`data: ${JSON.stringify({ content: chunkContent })}\n\n`);
+        }
+      }
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("Error in guest chat:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to process chat" });
+      } else {
+        res.write(`data: ${JSON.stringify({ error: "Failed to process chat" })}\n\n`);
+        res.end();
+      }
+    }
+  });
+
   // Database stats
   app.get("/api/stats", async (_req: Request, res: Response) => {
     try {

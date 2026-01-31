@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, History } from "lucide-react";
+import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, History, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/auth-context";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -16,14 +18,19 @@ interface SommelierChatProps {
   onSelectWine: (wine: WineType) => void;
 }
 
-// Preprocess markdown to fix bold markers that don't render properly
+interface LocalMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: Date;
+}
+
 function preprocessMarkdown(content: string): string {
-  // Replace **text** patterns that might not render with <strong> tags
-  // This handles cases where special characters inside bold markers cause issues
   return content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
 export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
+  const { isAuthenticated } = useAuth();
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
@@ -35,33 +42,36 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   const userMessageRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // Get all conversations
+  const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
+  const [localMessageId, setLocalMessageId] = useState(1);
+
   const { data: allConversations = [] } = useQuery<Conversation[]>({
     queryKey: ["/api/sommelier/conversations"],
+    enabled: isAuthenticated,
   });
 
-  // Get or create conversation (fallback for initial load)
   const { data: defaultConversation } = useQuery<Conversation>({
     queryKey: ["/api/sommelier/conversation"],
-    enabled: !activeConversationId,
+    enabled: isAuthenticated && !activeConversationId,
   });
 
-  // Set active conversation when default loads
   useEffect(() => {
-    if (defaultConversation && !activeConversationId) {
+    if (isAuthenticated && defaultConversation && !activeConversationId) {
       setActiveConversationId(defaultConversation.id);
     }
-  }, [defaultConversation, activeConversationId]);
+  }, [defaultConversation, activeConversationId, isAuthenticated]);
 
-  const conversation = allConversations.find(c => c.id === activeConversationId) || defaultConversation;
+  const conversation = isAuthenticated 
+    ? (allConversations.find(c => c.id === activeConversationId) || defaultConversation)
+    : null;
 
-  // Get messages for active conversation
-  const { data: messages = [] } = useQuery<Message[]>({
+  const { data: dbMessages = [] } = useQuery<Message[]>({
     queryKey: ["/api/sommelier/messages", activeConversationId],
-    enabled: !!activeConversationId,
+    enabled: isAuthenticated && !!activeConversationId,
   });
 
-  // Search conversations
+  const messages = isAuthenticated ? dbMessages : localMessages;
+
   const { data: searchResults = [] } = useQuery<{ conversation: Conversation; matchedMessages: Message[] }[]>({
     queryKey: ["/api/sommelier/search", searchQuery],
     queryFn: async () => {
@@ -70,10 +80,9 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
       if (!res.ok) throw new Error("Search failed");
       return res.json();
     },
-    enabled: !!searchQuery.trim(),
+    enabled: isAuthenticated && !!searchQuery.trim(),
   });
 
-  // Create new conversation mutation
   const createConversation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/sommelier/conversations", { title: "새 대화" });
@@ -85,14 +94,12 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     },
   });
 
-  // Delete conversation mutation
   const deleteConversation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/sommelier/conversations/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sommelier/conversations"] });
-      // If deleted active conversation, switch to another or create new
       if (allConversations.length > 1) {
         const remaining = allConversations.filter(c => c.id !== activeConversationId);
         if (remaining.length > 0) {
@@ -104,7 +111,6 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     },
   });
 
-  // Get all wines for linking (no filters to get complete wine list)
   const { data: allWines = [] } = useQuery<WineType[]>({
     queryKey: ["/api/wines/all"],
     queryFn: async () => {
@@ -114,29 +120,23 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     },
   });
 
-  // Create wine lookup map
   const wineMap = useMemo(() => {
     const map = new Map<string, WineType>();
     allWines.forEach((wine) => map.set(wine.id, wine));
     return map;
   }, [allWines]);
 
-  // Handle wine link clicks
   const handleWineClick = (wineId: string) => {
-    console.log("Wine link clicked:", wineId, "Map size:", wineMap.size);
     const wine = wineMap.get(wineId);
-    console.log("Found wine:", wine?.nameKr);
     if (wine) {
       onSelectWine(wine);
-    } else {
-      console.warn("Wine not found in map for ID:", wineId);
     }
   };
 
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
-      if (!conversation?.id) {
-        throw new Error("No conversation");
+      if (isAuthenticated && !conversation?.id) {
+        throw new Error("대화를 시작할 수 없습니다. 잠시 후 다시 시도해주세요.");
       }
 
       setPendingUserMessage(content);
@@ -144,13 +144,29 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
       setIsStreaming(true);
       setStreamedContent("");
 
-      const response = await fetch(`/api/sommelier/chat`, {
+      if (!isAuthenticated) {
+        const userMsg: LocalMessage = {
+          id: localMessageId,
+          role: "user",
+          content,
+          createdAt: new Date(),
+        };
+        setLocalMessages(prev => [...prev, userMsg]);
+        setLocalMessageId(prev => prev + 1);
+      }
+
+      const endpoint = isAuthenticated 
+        ? `/api/sommelier/chat`
+        : `/api/sommelier/chat/guest`;
+
+      const body = isAuthenticated
+        ? { conversationId: conversation!.id, content }
+        : { content, history: localMessages.slice(-10).map(m => ({ role: m.role, content: m.content })) };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId: conversation.id,
-          content,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) throw new Error("Failed to send message");
@@ -186,22 +202,34 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 throw new Error(data.error);
               }
             } catch (e) {
-              // Ignore parse errors for malformed JSON
             }
           }
         }
       } finally {
-        // Ensure streaming state is always reset
         setIsStreaming(false);
       }
 
       return fullContent;
     },
-    onSuccess: () => {
+    onSuccess: (fullContent) => {
       setIsStreaming(false);
       setStreamedContent("");
       setPendingUserMessage(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/sommelier/messages"] });
+
+      if (!isAuthenticated && fullContent) {
+        const assistantMsg: LocalMessage = {
+          id: localMessageId,
+          role: "assistant",
+          content: fullContent,
+          createdAt: new Date(),
+        };
+        setLocalMessages(prev => [...prev, assistantMsg]);
+        setLocalMessageId(prev => prev + 1);
+      }
+
+      if (isAuthenticated) {
+        queryClient.invalidateQueries({ queryKey: ["/api/sommelier/messages"] });
+      }
     },
     onError: (error) => {
       console.error("Chat error:", error);
@@ -217,14 +245,17 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     sendMessage.mutate(input.trim());
   };
 
-  // Scroll to user message when it's sent
+  const handleNewLocalChat = () => {
+    setLocalMessages([]);
+    setLocalMessageId(1);
+  };
+
   useEffect(() => {
     if (pendingUserMessage && userMessageRef.current) {
       userMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [pendingUserMessage]);
 
-  // Scroll to bottom as streaming content grows or when new messages are added
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -243,9 +274,46 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
   };
 
+  const renderMarkdownContent = (content: string) => (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
+      components={{
+        a: ({ href, children }) => {
+          if (href && href.startsWith("#wine-")) {
+            const wineId = href.replace("#wine-", "");
+            return (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleWineClick(wineId);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
+                className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
+                data-testid={`wine-link-${wineId}`}
+              >
+                {children}
+              </span>
+            );
+          }
+          return <a href={href} className="text-primary underline">{children}</a>;
+        },
+        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+        h2: ({ children }) => <h2 className="text-base font-semibold mt-4 mb-2">{children}</h2>,
+        p: ({ children }) => <p className="my-2">{children}</p>,
+        ul: ({ children }) => <ul className="my-2 pl-4 list-disc">{children}</ul>,
+        li: ({ children }) => <li className="my-1">{children}</li>,
+      }}
+    >
+      {preprocessMarkdown(content)}
+    </ReactMarkdown>
+  );
+
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-primary p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-foreground/20">
@@ -257,15 +325,27 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => createConversation.mutate()}
-            className="gap-1 bg-white text-primary hover:bg-white/90"
-            data-testid="button-new-chat-header"
-          >
-            <Plus className="h-4 w-4" />
-            새 대화
-          </Button>
+          {isAuthenticated ? (
+            <Button
+              size="sm"
+              onClick={() => createConversation.mutate()}
+              className="gap-1 bg-white text-primary hover:bg-white/90"
+              data-testid="button-new-chat-header"
+            >
+              <Plus className="h-4 w-4" />
+              새 대화
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleNewLocalChat}
+              className="gap-1 bg-white text-primary hover:bg-white/90"
+              data-testid="button-new-chat-header"
+            >
+              <Plus className="h-4 w-4" />
+              새 대화
+            </Button>
+          )}
           <Button
             size="icon"
             onClick={onClose}
@@ -277,43 +357,48 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab("chat")}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            activeTab === "chat"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="tab-chat"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            채팅
-          </div>
-        </button>
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            activeTab === "history"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="tab-history"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <History className="h-4 w-4" />
-            이전 대화
-          </div>
-        </button>
-      </div>
+      {isAuthenticated ? (
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              activeTab === "chat"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-chat"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              채팅
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              activeTab === "history"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-history"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <History className="h-4 w-4" />
+              이전 대화
+            </div>
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            로그인하면 대화 기록이 저장됩니다
+          </p>
+        </div>
+      )}
 
-      {/* Tab Content */}
-      {activeTab === "history" ? (
-        /* History Tab Content */
+      {isAuthenticated && activeTab === "history" ? (
         <div className="flex-1 flex flex-col">
-          {/* Search */}
           <div className="p-3 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -327,11 +412,9 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             </div>
           </div>
 
-          {/* Conversation List */}
           <ScrollArea className="flex-1">
             <div className="p-3 space-y-2">
               {searchQuery.trim() ? (
-                // Show search results
                 searchResults.length > 0 ? (
                   searchResults.map(({ conversation: conv }) => (
                     <div
@@ -358,7 +441,6 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                   <p className="text-sm text-muted-foreground text-center py-8">검색 결과가 없습니다</p>
                 )
               ) : allConversations.length > 0 ? (
-                // Show all conversations
                 allConversations.map((conv) => (
                   <div
                     key={conv.id}
@@ -414,12 +496,9 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
           </ScrollArea>
         </div>
       ) : (
-        /* Chat Tab Content */
         <>
-        {/* Messages */}
         <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
-          {/* Welcome Message */}
           {messages.length === 0 && !isStreaming && (
             <div className="space-y-4">
               <div className="flex gap-3">
@@ -435,7 +514,6 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 </div>
               </div>
 
-              {/* Suggestion Chips */}
               <div className="pl-11">
                 <p className="mb-2 text-xs text-muted-foreground">이렇게 물어보세요:</p>
                 <div className="flex flex-wrap gap-2">
@@ -456,7 +534,6 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             </div>
           )}
 
-          {/* Chat Messages */}
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -485,49 +562,14 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                   <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                 ) : (
                   <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeRaw]}
-                      components={{
-                        a: ({ href, children }) => {
-                          if (href && href.startsWith("#wine-")) {
-                            const wineId = href.replace("#wine-", "");
-                            return (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleWineClick(wineId);
-                                }}
-                                onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
-                                className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
-                                data-testid={`wine-link-${wineId}`}
-                              >
-                                {children}
-                              </span>
-                            );
-                          }
-                          return <a href={href} className="text-primary underline">{children}</a>;
-                        },
-                        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                        h2: ({ children }) => <h2 className="text-base font-semibold mt-4 mb-2">{children}</h2>,
-                        p: ({ children }) => <p className="my-2">{children}</p>,
-                        ul: ({ children }) => <ul className="my-2 pl-4 list-disc">{children}</ul>,
-                        li: ({ children }) => <li className="my-1">{children}</li>,
-                      }}
-                    >
-                      {preprocessMarkdown(msg.content)}
-                    </ReactMarkdown>
+                    {renderMarkdownContent(msg.content)}
                   </div>
                 )}
               </div>
             </div>
           ))}
 
-          {/* Pending User Message (shown immediately when user sends) */}
-          {pendingUserMessage && (
+          {pendingUserMessage && !isAuthenticated && (
             <div
               ref={userMessageRef}
               className="flex gap-3 flex-row-reverse"
@@ -541,7 +583,20 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             </div>
           )}
 
-          {/* Streaming Response */}
+          {pendingUserMessage && isAuthenticated && (
+            <div
+              ref={userMessageRef}
+              className="flex gap-3 flex-row-reverse"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary">
+                <User className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div className="max-w-[80%] rounded-lg p-3 bg-primary text-primary-foreground">
+                <p className="whitespace-pre-wrap text-sm">{pendingUserMessage}</p>
+              </div>
+            </div>
+          )}
+
           {isStreaming && (
             <div className="flex gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent">
@@ -550,87 +605,54 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
               <div className="max-w-[80%] rounded-lg bg-muted p-3">
                 {streamedContent ? (
                   <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeRaw]}
-                      components={{
-                        a: ({ href, children }) => {
-                          if (href && href.startsWith("#wine-")) {
-                            const wineId = href.replace("#wine-", "");
-                            return (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleWineClick(wineId);
-                                }}
-                                onKeyDown={(e) => e.key === "Enter" && handleWineClick(wineId)}
-                                className="text-primary underline decoration-primary/50 hover:decoration-primary font-medium cursor-pointer"
-                                data-testid={`wine-link-${wineId}`}
-                              >
-                                {children}
-                              </span>
-                            );
-                          }
-                          return <a href={href} className="text-primary underline">{children}</a>;
-                        },
-                        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                        h2: ({ children }) => <h2 className="text-base font-semibold mt-4 mb-2">{children}</h2>,
-                        p: ({ children }) => <p className="my-2">{children}</p>,
-                        ul: ({ children }) => <ul className="my-2 pl-4 list-disc">{children}</ul>,
-                        li: ({ children }) => <li className="my-1">{children}</li>,
-                      }}
-                    >
-                      {preprocessMarkdown(streamedContent)}
-                    </ReactMarkdown>
+                    {renderMarkdownContent(streamedContent)}
                   </div>
                 ) : (
-                  <span className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    생각중...
-                  </span>
+                    답변을 생성하고 있습니다...
+                  </div>
                 )}
               </div>
             </div>
           )}
+
           <div ref={scrollRef} />
         </div>
-      </ScrollArea>
+        </ScrollArea>
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-border p-4">
-        <div className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="와인에 대해 물어보세요..."
-            className="min-h-[44px] max-h-32 resize-none"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            disabled={isStreaming}
-            data-testid="input-chat"
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || isStreaming}
-            data-testid="button-send-message"
-          >
-            {isStreaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </form>
-      </>
+        <form onSubmit={handleSubmit} className="border-t border-border p-4">
+          <div className="flex gap-2">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+              placeholder="와인에 대해 물어보세요..."
+              className="min-h-[44px] max-h-32 resize-none"
+              disabled={isStreaming}
+              data-testid="input-chat-message"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!input.trim() || isStreaming}
+              className="shrink-0"
+              data-testid="button-send-message"
+            >
+              {isStreaming ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </form>
+        </>
       )}
     </div>
   );

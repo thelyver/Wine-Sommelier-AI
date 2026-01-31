@@ -26,13 +26,24 @@ app.use(express.urlencoded({ extended: false }));
 
 // Session configuration
 const PgSession = connectPgSimple(session);
+
+// Validate SESSION_SECRET in production
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && process.env.NODE_ENV === "production") {
+  console.error("FATAL: SESSION_SECRET environment variable is required in production");
+  process.exit(1);
+}
+if (!sessionSecret) {
+  console.warn("WARNING: Using default session secret. Set SESSION_SECRET in production!");
+}
+
 app.use(
   session({
     store: new PgSession({
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || "wine-sommelier-secret-key",
+    secret: sessionSecret || "dev-only-wine-sommelier-secret-key-change-in-prod",
     resave: false,
     saveUninitialized: false,
     cookie: {
