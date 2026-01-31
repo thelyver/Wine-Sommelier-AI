@@ -1,12 +1,119 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import OpenAI from "openai";
-import { storage } from "./storage";
+import { storage, type SmartSearchFilters } from "./storage";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
+
+// Cache for keyword data (loaded once at startup)
+let keywordCache: {
+  tasteLevels: { attribute: string; level: number; keywords: string[] | null }[];
+  priceRanges: { rangeName: string; minPrice: number; maxPrice: number; keywords: string[] | null }[];
+  keywords: { category: string; key: string; keywords: string[] | null }[];
+  occasions: { id: number; occasion: string; keywords: string[] | null }[];
+} | null = null;
+
+async function loadKeywordCache() {
+  if (keywordCache) return keywordCache;
+  
+  const [tasteLevels, priceRanges, keywords, occasions] = await Promise.all([
+    storage.getAllTasteLevels(),
+    storage.getAllPriceRanges(),
+    storage.getAllKeywords(),
+    storage.getOccasionTypes(),
+  ]);
+  
+  keywordCache = { tasteLevels, priceRanges, keywords, occasions };
+  return keywordCache;
+}
+
+// Analyze user query and extract filters
+async function analyzeQueryForFilters(userQuery: string): Promise<SmartSearchFilters> {
+  const cache = await loadKeywordCache();
+  const filters: SmartSearchFilters = {};
+  const queryLower = userQuery.toLowerCase();
+  
+  // Match taste levels (sweet, acidity, body, tannin)
+  for (const taste of cache.tasteLevels) {
+    if (taste.keywords) {
+      for (const kw of taste.keywords) {
+        if (queryLower.includes(kw.toLowerCase())) {
+          const attr = taste.attribute as 'sweet' | 'acidity' | 'body' | 'tannin';
+          if (!filters[attr]) filters[attr] = {};
+          filters[attr]!.min = taste.level;
+          break;
+        }
+      }
+    }
+  }
+  
+  // Match price ranges
+  for (const range of cache.priceRanges) {
+    if (range.keywords) {
+      for (const kw of range.keywords) {
+        if (queryLower.includes(kw.toLowerCase())) {
+          filters.priceMin = range.minPrice;
+          filters.priceMax = range.maxPrice;
+          break;
+        }
+      }
+    }
+  }
+  
+  // Match occasions
+  const matchedOccasionIds: number[] = [];
+  for (const occ of cache.occasions) {
+    if (queryLower.includes(occ.occasion.toLowerCase())) {
+      matchedOccasionIds.push(occ.id);
+    }
+    if (occ.keywords) {
+      for (const kw of occ.keywords) {
+        if (queryLower.includes(kw.toLowerCase())) {
+          matchedOccasionIds.push(occ.id);
+          break;
+        }
+      }
+    }
+  }
+  if (matchedOccasionIds.length > 0) {
+    filters.occasionIds = Array.from(new Set(matchedOccasionIds));
+  }
+  
+  // Match type and nation from keyword_lib
+  for (const kw of cache.keywords) {
+    if (kw.keywords) {
+      for (const keyword of kw.keywords) {
+        if (queryLower.includes(keyword.toLowerCase())) {
+          if (kw.category === 'type') {
+            filters.type = kw.key;
+          } else if (kw.category === 'nation') {
+            filters.nation = kw.key;
+          }
+          break;
+        }
+      }
+    }
+  }
+  
+  // Direct type matching
+  const typeMap: Record<string, string> = {
+    '레드': 'RED', '화이트': 'WHITE', '스파클링': 'SPARKLING',
+    '로제': 'Rose', '주정강화': 'Fortified',
+    'red': 'RED', 'white': 'WHITE', 'sparkling': 'SPARKLING',
+    'rose': 'Rose', 'rosé': 'Rose'
+  };
+  for (const [keyword, type] of Object.entries(typeMap)) {
+    if (queryLower.includes(keyword)) {
+      filters.type = type;
+      break;
+    }
+  }
+  
+  return filters;
+}
 
 // System prompt loaded from attached file
 const SOMMELIER_BASE_PROMPT = `당신은 전문 와인 소믈리에다.
@@ -142,16 +249,45 @@ export async function registerRoutes(
         content,
       });
 
-      // Get wine context - include relevant wines
-      const wines = await storage.getWinesForContext(100);
+      // Analyze user query and extract filters
+      const filters = await analyzeQueryForFilters(content);
+      console.log("Extracted filters from query:", JSON.stringify(filters));
+      
+      // Smart search wines based on extracted filters
+      let wines;
+      const hasFilters = Object.keys(filters).length > 0;
+      
+      if (hasFilters) {
+        wines = await storage.smartSearchWines(filters, 30);
+        console.log(`Smart search found ${wines.length} wines matching filters`);
+        
+        // If smart search returns too few results, supplement with general wines
+        if (wines.length < 10) {
+          const generalWines = await storage.getWinesForContext(30);
+          const wineIds = new Set(wines.map(w => w.id));
+          const additionalWines = generalWines.filter(w => !wineIds.has(w.id));
+          wines = [...wines, ...additionalWines.slice(0, 20 - wines.length)];
+        }
+      } else {
+        // No specific filters found, get general wine context
+        wines = await storage.getWinesForContext(50);
+      }
+      
       const wineContext = wines
         .map(
           (w) =>
-            `- ${w.nameKr} (${w.id}): ${w.type || ""}, ${w.nation || ""}, ${w.varieties || ""}, ${w.price ? w.price.toLocaleString() + "원" : "가격미정"}, ${w.summary || ""}`
+            `- ${w.nameKr} (${w.id}): ${w.type || ""}, ${w.nation || ""}, ${w.varieties || ""}, ` +
+            `${w.price ? w.price.toLocaleString() + "원" : "가격미정"}, ` +
+            `단맛:${w.sweet || 0}/5 산미:${w.acidity || 0}/5 바디:${w.body || 0}/5 탄닌:${w.tannin || 0}/5, ` +
+            `${w.summary || ""}`
         )
         .join("\n");
 
-      const systemPrompt = buildSommelierPrompt(wineContext);
+      const filterSummary = hasFilters 
+        ? `\n\n[검색 조건에 맞는 와인 ${wines.length}개가 검색되었습니다]` 
+        : "";
+      
+      const systemPrompt = buildSommelierPrompt(wineContext + filterSummary);
 
       // Get previous messages for context
       const previousMessages = await storage.getMessagesByConversationId(conversationId);
