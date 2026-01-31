@@ -256,16 +256,16 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             <p className="text-xs text-sidebar-foreground/70">와인 추천 전문가</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="icon"
+            variant="outline"
+            size="sm"
             onClick={() => createConversation.mutate()}
-            className="text-sidebar-foreground"
+            className="gap-1"
             data-testid="button-new-chat-header"
-            title="새 대화"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
+            새 대화
           </Button>
           <Button
             variant="ghost"
