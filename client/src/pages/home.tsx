@@ -490,7 +490,7 @@ export default function Home() {
           <>
             {/* Mobile/Tablet Full Screen */}
             <aside 
-              className="fixed inset-0 z-50 bg-card md:hidden"
+              className="fixed-full-height z-50 bg-card md:hidden"
             >
               <SommelierChat onClose={() => setShowChat(false)} onSelectWine={setSelectedWine} />
             </aside>

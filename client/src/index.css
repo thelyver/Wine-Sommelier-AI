@@ -40,6 +40,24 @@ html, body {
   }
 }
 
+/* Full screen overlay fix for Safari (for chat panel) */
+.fixed-full-height {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+@supports (-webkit-touch-callout: none) {
+  .fixed-full-height {
+    height: -webkit-fill-available;
+  }
+}
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);
