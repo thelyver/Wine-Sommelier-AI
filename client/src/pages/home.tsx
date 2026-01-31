@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Wine, MessageSquare, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield, Key } from "lucide-react";
+import { Wine, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -158,16 +158,6 @@ export default function Home() {
             
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <Button
-                onClick={() => setShowChat(!showChat)}
-                variant={showChat ? "default" : "outline"}
-                size="sm"
-                className="gap-2"
-                data-testid="button-toggle-chat"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline">AI 소믈리에</span>
-              </Button>
 
               {isAuthenticated ? (
                 <DropdownMenu>
@@ -424,6 +414,18 @@ export default function Home() {
           </>
         )}
       </div>
+
+      {/* Floating AI Sommelier Button */}
+      {!showChat && (
+        <Button
+          onClick={() => setShowChat(true)}
+          className="fixed bottom-6 left-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
+          size="icon"
+          data-testid="button-floating-chat"
+        >
+          <Wine className="h-6 w-6" />
+        </Button>
+      )}
 
       {/* Wine Detail Modal */}
       <WineDetailModal
