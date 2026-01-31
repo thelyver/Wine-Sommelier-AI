@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safari/iOS viewport height fix */
+html, body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    min-height: -webkit-fill-available;
+  }
+}
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);

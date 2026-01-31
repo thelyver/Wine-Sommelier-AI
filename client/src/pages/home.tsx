@@ -29,6 +29,7 @@ export default function Home() {
   const [showChat, setShowChat] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWine, setSelectedWine] = useState<WineType | null>(null);
   const [chatWidth, setChatWidth] = useState(480);
@@ -172,8 +173,17 @@ export default function Home() {
     }
   }, [updateCarouselScroll]);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const clearFilters = () => {
     setFilters({});
+    setSearchInput("");
     setSearchQuery("");
   };
 
@@ -204,8 +214,8 @@ export default function Home() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="와인 이름, 품종, 국가로 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="w-full pl-10 bg-muted/50 border-0"
                   data-testid="input-search"
                 />
@@ -330,8 +340,8 @@ export default function Home() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="와인 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="pl-10 bg-muted/50 border-0"
                   data-testid="input-search-mobile"
                 />
