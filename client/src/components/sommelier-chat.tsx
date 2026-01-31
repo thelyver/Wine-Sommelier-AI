@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Wine as WineType, Message, Conversation } from "@shared/schema";
 
 interface SommelierChatProps {
@@ -249,6 +250,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 ) : (
                   <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
                     <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
                       components={{
                         a: ({ href, children }) => {
                           if (href && href.startsWith("#wine-")) {
@@ -297,6 +299,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 {streamedContent ? (
                   <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
                     <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
                       components={{
                         a: ({ href, children }) => {
                           if (href && href.startsWith("#wine-")) {
