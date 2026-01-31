@@ -172,7 +172,8 @@ export async function registerRoutes(
         priceMin: req.query.priceMin ? parseInt(req.query.priceMin as string) : undefined,
         priceMax: req.query.priceMax ? parseInt(req.query.priceMax as string) : undefined,
         search: req.query.search as string | undefined,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
       };
 
       const wines = await storage.getWines(filters);

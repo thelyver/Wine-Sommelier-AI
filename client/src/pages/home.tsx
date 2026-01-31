@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Wine, Search, X, Sparkles, ChevronRight, GripVertical, User, LogOut, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -90,9 +90,17 @@ export default function Home() {
     document.addEventListener("touchend", handleTouchEnd);
   }, [chatWidth]);
 
-  const { data: wines = [], isLoading } = useQuery<WineType[]>({
+  const WINES_PER_PAGE = 20;
+  
+  const {
+    data: winesData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["/api/wines", filters, searchQuery],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
       if (filters.type) params.append("type", filters.type);
       if (filters.nation) params.append("nation", filters.nation);
@@ -100,11 +108,38 @@ export default function Home() {
       if (filters.priceMin) params.append("priceMin", filters.priceMin.toString());
       if (filters.priceMax) params.append("priceMax", filters.priceMax.toString());
       if (searchQuery) params.append("search", searchQuery);
+      params.append("limit", WINES_PER_PAGE.toString());
+      params.append("offset", pageParam.toString());
       const res = await fetch(`/api/wines?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch wines");
-      return res.json();
+      return res.json() as Promise<WineType[]>;
     },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < WINES_PER_PAGE) return undefined;
+      return allPages.flat().length;
+    },
+    initialPageParam: 0,
   });
+
+  const wines = winesData?.pages.flat() ?? [];
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const { data: featuredWines = [] } = useQuery<WineType[]>({
     queryKey: ["/api/wines/featured"],
@@ -369,15 +404,30 @@ export default function Home() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {wines.map((wine) => (
-                    <WineCard
-                      key={wine.id}
-                      wine={wine}
-                      onClick={() => setSelectedWine(wine)}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {wines.map((wine) => (
+                      <WineCard
+                        key={wine.id}
+                        wine={wine}
+                        onClick={() => setSelectedWine(wine)}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Infinite scroll trigger */}
+                  <div ref={loadMoreRef} className="py-8 flex justify-center">
+                    {isFetchingNextPage && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <span>더 불러오는 중...</span>
+                      </div>
+                    )}
+                    {!hasNextPage && wines.length > 0 && (
+                      <p className="text-muted-foreground text-sm">모든 와인을 불러왔습니다</p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </section>

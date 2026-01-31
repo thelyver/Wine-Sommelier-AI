@@ -48,6 +48,7 @@ export interface WineFilters {
   priceMax?: number;
   search?: string;
   limit?: number;
+  offset?: number;
 }
 
 export interface IStorage {
@@ -139,12 +140,14 @@ class DatabaseStorage implements IStorage {
     }
 
     const query = db.select().from(wines);
+    const limit = filters?.limit || 20;
+    const offset = filters?.offset || 0;
     
     if (conditions.length > 0) {
-      return query.where(and(...conditions)).limit(filters?.limit || 100);
+      return query.where(and(...conditions)).limit(limit).offset(offset);
     }
     
-    return query.limit(filters?.limit || 100);
+    return query.limit(limit).offset(offset);
   }
 
   async getWineById(id: string): Promise<Wine | undefined> {
