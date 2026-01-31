@@ -28,7 +28,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
