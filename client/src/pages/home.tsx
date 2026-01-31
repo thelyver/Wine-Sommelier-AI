@@ -15,6 +15,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { PasswordChangeModal } from "@/components/password-change-modal";
 import { useAuth } from "@/contexts/auth-context";
 import type { Wine as WineType } from "@shared/schema";
+import heroWineImage from "@/assets/images/hero-wine.jpg";
 
 const categoryPills = [
   { id: "RED", label: "레드 와인", color: "bg-rose-600 text-white" },
@@ -214,32 +215,32 @@ export default function Home() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Hero Banner - wine.com Style */}
-          <section className="relative bg-gradient-to-r from-primary to-primary/80 py-12 text-primary-foreground">
-            <div className="container mx-auto px-4">
-              <div className="flex items-center justify-between">
-                <div className="max-w-xl">
-                  <h1 className="mb-3 text-3xl font-bold md:text-4xl">
-                    AI가 추천하는 와인
-                  </h1>
-                  <p className="mb-6 text-lg text-primary-foreground/90">
-                    상황과 취향에 맞는 완벽한 와인을 찾아보세요
-                  </p>
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    onClick={() => setShowChat(true)}
-                    className="gap-2 bg-background/20 backdrop-blur-sm border-primary-foreground/30 text-primary-foreground"
-                    data-testid="button-hero-chat"
-                  >
-                    <Sparkles className="h-5 w-5" />
-                    AI 소믈리에와 대화하기
-                  </Button>
-                </div>
-                <div className="hidden lg:block">
-                  <div className="flex h-40 w-32 items-end justify-center rounded-t-full bg-gradient-to-t from-primary-foreground/20 to-transparent">
-                    <div className="mb-4 h-28 w-16 rounded-t-full bg-gradient-to-t from-primary-foreground/30 to-transparent" />
-                  </div>
-                </div>
+          <section 
+            className="relative py-16 md:py-24 text-white overflow-hidden"
+            style={{
+              backgroundImage: `url(${heroWineImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
+            <div className="container mx-auto px-4 relative z-10">
+              <div className="max-w-2xl">
+                <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl drop-shadow-lg">
+                  AI가 추천하는 와인
+                </h1>
+                <p className="mb-8 text-lg md:text-xl text-white/90 drop-shadow">
+                  상황과 취향에 맞는 완벽한 와인을 찾아보세요
+                </p>
+                <Button 
+                  size="lg" 
+                  onClick={() => setShowChat(true)}
+                  className="gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/30 transition-all"
+                  data-testid="button-hero-chat"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  AI 소믈리에와 대화하기
+                </Button>
               </div>
             </div>
           </section>
