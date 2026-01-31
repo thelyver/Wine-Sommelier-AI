@@ -1,7 +1,16 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import OpenAI from "openai";
+import bcrypt from "bcryptjs";
 import { storage, type SmartSearchFilters } from "./storage";
+import { registerUserSchema, loginUserSchema, type SafeUser } from "@shared/schema";
+
+// Extend express-session types
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+  }
+}
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -449,6 +458,196 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // ============ AUTH ROUTES ============
+
+  // Register new user
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
+    try {
+      const parsed = registerUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "유효하지 않은 입력입니다.", details: parsed.error.errors });
+      }
+
+      const { email, password, name } = parsed.data;
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "이미 사용 중인 이메일입니다." });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const user = await storage.createUser({
+        email,
+        password: hashedPassword,
+        name,
+      });
+
+      // Set session
+      req.session.userId = user.id;
+
+      // Return safe user (without password)
+      const safeUser: SafeUser = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+      };
+
+      res.status(201).json(safeUser);
+    } catch (error) {
+      console.error("Error registering user:", error);
+      res.status(500).json({ error: "회원가입에 실패했습니다." });
+    }
+  });
+
+  // Login
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const parsed = loginUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "유효하지 않은 입력입니다." });
+      }
+
+      const { email, password } = parsed.data;
+
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
+      }
+
+      // Set session
+      req.session.userId = user.id;
+
+      // Return safe user
+      const safeUser: SafeUser = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+      };
+
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error logging in:", error);
+      res.status(500).json({ error: "로그인에 실패했습니다." });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Error logging out:", err);
+        return res.status(500).json({ error: "로그아웃에 실패했습니다." });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ success: true });
+    });
+  });
+
+  // Get current user
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.json(null);
+      }
+
+      const user = await storage.getUserById(req.session.userId);
+      if (!user) {
+        return res.json(null);
+      }
+
+      const safeUser: SafeUser = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+      };
+
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error getting current user:", error);
+      res.status(500).json({ error: "사용자 정보를 가져오는데 실패했습니다." });
+    }
+  });
+
+  // ============ ADMIN ROUTES ============
+
+  // Middleware to check if user is admin
+  const requireAdmin = async (req: Request, res: Response, next: Function) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다." });
+    }
+    const user = await storage.getUserById(req.session.userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+    }
+    next();
+  };
+
+  // Get all users (admin only)
+  app.get("/api/admin/users", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "사용자 목록을 가져오는데 실패했습니다." });
+    }
+  });
+
+  // Update user (admin only)
+  app.patch("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다." });
+      }
+
+      const { email, name, role } = req.body;
+      const updatedUser = await storage.updateUser(id, { email, name, role });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "사용자 정보 수정에 실패했습니다." });
+    }
+  });
+
+  // Delete user (admin only)
+  app.delete("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다." });
+      }
+
+      await storage.deleteUser(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "사용자 삭제에 실패했습니다." });
     }
   });
 
