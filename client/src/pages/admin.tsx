@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Trash2, Edit2, Save, X, Users, Shield, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, Edit2, Save, X, Users, Shield, Loader2, Key } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface User {
   id: number;
@@ -27,6 +29,8 @@ export default function Admin() {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<{ name: string; role: string }>({ name: "", role: "" });
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
@@ -63,6 +67,21 @@ export default function Admin() {
     },
     onError: () => {
       toast({ title: "삭제 실패", variant: "destructive" });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ id, newPassword }: { id: number; newPassword: string }) => {
+      const res = await apiRequest("POST", `/api/admin/users/${id}/reset-password`, { newPassword });
+      return res.json();
+    },
+    onSuccess: () => {
+      setResetPasswordUser(null);
+      setNewPassword("");
+      toast({ title: "비밀번호가 초기화되었습니다." });
+    },
+    onError: () => {
+      toast({ title: "비밀번호 초기화 실패", variant: "destructive" });
     },
   });
 
@@ -243,6 +262,15 @@ export default function Admin() {
                               <Button
                                 size="icon"
                                 variant="ghost"
+                                onClick={() => setResetPasswordUser(u)}
+                                data-testid={`button-reset-password-${u.id}`}
+                                title="비밀번호 초기화"
+                              >
+                                <Key className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 onClick={() => handleDelete(u.id)}
                                 disabled={u.id === user?.id}
                                 data-testid={`button-delete-user-${u.id}`}
@@ -261,6 +289,50 @@ export default function Admin() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!resetPasswordUser} onOpenChange={(open) => !open && setResetPasswordUser(null)}>
+        <DialogContent className="sm:max-w-md" data-testid="reset-password-modal">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" />
+              비밀번호 초기화
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              <strong>{resetPasswordUser?.email}</strong> 사용자의 비밀번호를 초기화합니다.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">새 비밀번호</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="6자 이상"
+                minLength={6}
+                data-testid="input-reset-password"
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (resetPasswordUser && newPassword.length >= 6) {
+                  resetPasswordMutation.mutate({ id: resetPasswordUser.id, newPassword });
+                }
+              }}
+              disabled={newPassword.length < 6 || resetPasswordMutation.isPending}
+              data-testid="button-confirm-reset-password"
+            >
+              {resetPasswordMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "비밀번호 초기화"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

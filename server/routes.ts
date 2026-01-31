@@ -797,5 +797,33 @@ export async function registerRoutes(
     }
   });
 
+  // Reset user password (admin only)
+  app.post("/api/admin/users/:id/reset-password", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다." });
+      }
+
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: "새 비밀번호는 6자 이상이어야 합니다." });
+      }
+
+      const targetUser = await storage.getUserById(id);
+      if (!targetUser) {
+        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(id, hashedPassword);
+
+      res.json({ success: true, message: "비밀번호가 초기화되었습니다." });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ error: "비밀번호 초기화에 실패했습니다." });
+    }
+  });
+
   return httpServer;
 }
