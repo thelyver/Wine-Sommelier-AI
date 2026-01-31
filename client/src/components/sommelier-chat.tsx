@@ -19,6 +19,7 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   // Get or create conversation
@@ -143,11 +144,26 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
     sendMessage.mutate(input.trim());
   };
 
+  // Scroll to last message when streaming starts (to show the user's question)
   useEffect(() => {
-    if (scrollRef.current) {
+    if (isStreaming && !streamedContent && lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [isStreaming, streamedContent]);
+
+  // Scroll to bottom as streaming content grows
+  useEffect(() => {
+    if (streamedContent && scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [messages, streamedContent, isStreaming]);
+  }, [streamedContent]);
+
+  // Scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messages.length > 0 && scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [messages]);
 
   const suggestionQuestions = [
     "오늘 혼술하려는데 레드 와인 추천해줘",
@@ -221,9 +237,10 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
           )}
 
           {/* Chat Messages */}
-          {messages.map((msg) => (
+          {messages.map((msg, index) => (
             <div
               key={msg.id}
+              ref={index === messages.length - 1 ? lastMessageRef : null}
               className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
             >
               <div
