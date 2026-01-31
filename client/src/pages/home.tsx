@@ -419,10 +419,10 @@ export default function Home() {
       {!showChat && (
         <button
           onClick={() => setShowChat(true)}
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center transition-colors"
+          className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-2xl z-50 bg-gradient-to-br from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white flex items-center justify-center transition-all hover:scale-105 animate-pulse"
           data-testid="button-floating-chat"
         >
-          <Wine className="h-6 w-6" />
+          <Sparkles className="h-7 w-7" />
         </button>
       )}
 
