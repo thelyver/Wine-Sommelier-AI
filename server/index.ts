@@ -37,6 +37,11 @@ if (!sessionSecret) {
   console.warn("WARNING: Using default session secret. Set SESSION_SECRET in production!");
 }
 
+// Trust the reverse proxy (Replit deployment)
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   session({
     store: new PgSession({
@@ -49,6 +54,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   })
