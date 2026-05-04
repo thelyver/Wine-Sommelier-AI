@@ -4,6 +4,7 @@ import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { pool } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -45,8 +46,9 @@ if (process.env.NODE_ENV === "production") {
 app.use(
   session({
     store: new PgSession({
-      conString: process.env.DATABASE_URL,
+      pool: pool,
       createTableIfMissing: true,
+      tableName: "session",
     }),
     secret: sessionSecret || "dev-only-wine-sommelier-secret-key-change-in-prod",
     resave: false,
