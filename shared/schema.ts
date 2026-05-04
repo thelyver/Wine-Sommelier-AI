@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, real, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, real, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -30,6 +30,14 @@ export const wines = pgTable("wines", {
   tastingNote: text("tasting_note"),
   pairing: text("pairing"),
   sampleGroup: text("sample_group"),
+
+  // 강화 데이터 (Phase 2) — GPT-4o-mini가 자동 생성
+  moodTags: text("mood_tags").array(),        // ["위로", "차분함", "설렘"]
+  sceneTags: text("scene_tags").array(),      // ["혼술", "데이트", "비즈니스디너"]
+  emotionStory: text("emotion_story"),        // 감성 상황 묘사 2~3문장
+  salesPitch: text("sales_pitch"),            // 소매상 영업 멘트
+  pairingDetail: text("pairing_detail"),      // 구체적 음식 페어링
+  enrichedAt: timestamp("enriched_at"),       // 강화 데이터 생성 시각 (null = 미생성)
 });
 
 // Occasion types master table - from KeywordLib_occasion CSV
