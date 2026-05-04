@@ -13,8 +13,7 @@ declare module "express-session" {
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // Cache for keyword data (loaded once at startup)
@@ -415,7 +414,7 @@ export async function registerRoutes(
 
       // Stream response
       const stream = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-4o-mini",
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 1000,
@@ -521,7 +520,7 @@ export async function registerRoutes(
 
       // Stream response
       const stream = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-4o-mini",
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 1000,
