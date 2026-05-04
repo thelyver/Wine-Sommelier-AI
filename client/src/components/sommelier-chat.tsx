@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, History, AlertCircle } from "lucide-react";
+import { X, Send, Wine, Sparkles, Loader2, User, Plus, Search, MessageSquare, Trash2, History, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,106 @@ interface LocalMessage {
 
 function preprocessMarkdown(content: string): string {
   return content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+// 마크다운 응답에서 wine ID 파싱 (#wine-ta001 형식)
+function extractWineIds(content: string): string[] {
+  const regex = /#wine-([a-z0-9]+)/g;
+  const ids: string[] = [];
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    if (!ids.includes(match[1])) ids.push(match[1]);
+  }
+  return ids;
+}
+
+// 맛 수치를 5개 점으로 시각화
+function TasteDots({ value, color }: { value: number | null | undefined; color: string }) {
+  const v = Math.round(value ?? 0);
+  return (
+    <span className="flex gap-[3px]">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          className={`inline-block h-2 w-2 rounded-full ${i <= v ? color : "bg-muted-foreground/20"}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+const typeColors: Record<string, string> = {
+  RED: "bg-rose-600 text-white",
+  WHITE: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  SPARKLING: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
+  Rose: "bg-pink-200 text-pink-800 dark:bg-pink-900 dark:text-pink-100",
+  Fortified: "bg-purple-600 text-white",
+};
+const typeLabels: Record<string, string> = {
+  RED: "레드", WHITE: "화이트", SPARKLING: "스파클링", Rose: "로제", Fortified: "주정강화",
+};
+
+// 소피 추천 와인 미니 카드
+function WineTasteCard({ wine, onClick }: { wine: WineType; onClick: () => void }) {
+  const tasteRows = [
+    { label: "당도", value: wine.sweet,    color: "bg-pink-500" },
+    { label: "산도", value: wine.acidity,  color: "bg-green-500" },
+    { label: "바디", value: wine.body,     color: "bg-purple-500" },
+    { label: "탄닌", value: wine.tannin,   color: "bg-orange-500" },
+  ].filter((r) => r.value !== null && r.value !== undefined);
+
+  const hasTaste = tasteRows.length > 0;
+
+  return (
+    <button
+      onClick={onClick}
+      className="group flex-shrink-0 w-44 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all text-left overflow-hidden"
+    >
+      {/* 상단 배지 + 가격 */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-1">
+        <Badge className={`text-[10px] px-1.5 py-0 ${typeColors[wine.type ?? "RED"] ?? typeColors.RED}`}>
+          {typeLabels[wine.type ?? "RED"] ?? wine.type}
+        </Badge>
+        <span className="text-[11px] text-muted-foreground font-medium">
+          {wine.price ? `₩${(wine.price / 10000).toFixed(0)}만` : ""}
+        </span>
+      </div>
+
+      {/* 와인명 */}
+      <div className="px-3 pb-2">
+        <p className="text-xs font-semibold leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+          {wine.nameKr || wine.nameEn}
+        </p>
+        {wine.nation && (
+          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+            {wine.nation}{wine.varieties ? ` · ${wine.varieties}` : ""}
+          </p>
+        )}
+      </div>
+
+      {/* 맛 수치 */}
+      {hasTaste && (
+        <div className="px-3 pb-2 space-y-1 border-t border-border/50 pt-2">
+          {tasteRows.map((r) => (
+            <div key={r.label} className="flex items-center justify-between gap-1">
+              <span className="text-[10px] text-muted-foreground w-6 shrink-0">{r.label}</span>
+              <TasteDots value={r.value} color={r.color} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 알코올 + 자세히 보기 */}
+      <div className="flex items-center justify-between px-3 py-2 bg-muted/40">
+        <span className="text-[10px] text-muted-foreground">
+          {wine.abv ? `🍷 ${wine.abv}%` : ""}
+        </span>
+        <span className="text-[10px] text-primary flex items-center gap-0.5 group-hover:gap-1 transition-all">
+          자세히 <ChevronRight className="h-2.5 w-2.5" />
+        </span>
+      </div>
+    </button>
+  );
 }
 
 export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
@@ -320,8 +420,8 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             <Sparkles className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold text-primary-foreground">AI 소믈리에</h3>
-            <p className="text-xs text-primary-foreground/70">와인 추천 전문가</p>
+            <h3 className="font-semibold text-primary-foreground">소피 · Sofy</h3>
+            <p className="text-xs text-primary-foreground/70">AI 와인 소믈리에</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -507,9 +607,9 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
                 </div>
                 <div className="flex-1 rounded-lg bg-muted p-4">
                   <p className="text-sm">
-                    안녕하세요! 저는 AI 와인 소믈리에입니다. 
-                    어떤 상황에서 와인을 즐기실 건가요? 
-                    음식, 분위기, 취향을 알려주시면 딱 맞는 와인을 추천해드릴게요.
+                    안녕하세요, 저는 소피예요. 😊<br />
+                    오늘 어떤 순간을 위한 와인을 찾고 계신가요?<br />
+                    분위기, 음식, 기분을 편하게 말씀해 주시면 — 딱 맞는 와인을 골라드릴게요.
                   </p>
                 </div>
               </div>
@@ -534,40 +634,64 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
             </div>
           )}
 
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-            >
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  msg.role === "user" ? "bg-primary" : "bg-accent"
-                }`}
-              >
-                {msg.role === "user" ? (
-                  <User className="h-4 w-4 text-primary-foreground" />
-                ) : (
-                  <Wine className="h-4 w-4 text-accent-foreground" />
-                )}
-              </div>
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}
-                data-testid={`message-${msg.id}`}
-              >
-                {msg.role === "user" ? (
-                  <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                ) : (
-                  <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
-                    {renderMarkdownContent(msg.content)}
+          {messages.map((msg) => {
+            const recommendedWineIds = msg.role === "assistant" ? extractWineIds(msg.content) : [];
+            const recommendedWines = recommendedWineIds
+              .map((id) => wineMap.get(id))
+              .filter((w): w is WineType => !!w);
+
+            return (
+              <div key={msg.id} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    msg.role === "user" ? "bg-primary" : "bg-accent"
+                  }`}
+                >
+                  {msg.role === "user" ? (
+                    <User className="h-4 w-4 text-primary-foreground" />
+                  ) : (
+                    <Wine className="h-4 w-4 text-accent-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className={`max-w-[85%] rounded-lg p-3 ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground ml-auto"
+                        : "bg-muted"
+                    }`}
+                    data-testid={`message-${msg.id}`}
+                  >
+                    {msg.role === "user" ? (
+                      <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                    ) : (
+                      <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
+                        {renderMarkdownContent(msg.content)}
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* 소피 추천 와인 미니 카드 */}
+                  {recommendedWines.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-muted-foreground mb-1.5 ml-1">
+                        소피의 추천 와인 {recommendedWines.length}종
+                      </p>
+                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-border">
+                        {recommendedWines.map((wine) => (
+                          <WineTasteCard
+                            key={wine.id}
+                            wine={wine}
+                            onClick={() => onSelectWine(wine)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {pendingUserMessage && !isAuthenticated && (
             <div
@@ -602,17 +726,19 @@ export function SommelierChat({ onClose, onSelectWine }: SommelierChatProps) {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent">
                 <Wine className="h-4 w-4 text-accent-foreground" />
               </div>
-              <div className="max-w-[80%] rounded-lg bg-muted p-3">
-                {streamedContent ? (
-                  <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
-                    {renderMarkdownContent(streamedContent)}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    답변을 생성하고 있습니다...
-                  </div>
-                )}
+              <div className="flex-1 min-w-0">
+                <div className="max-w-[85%] rounded-lg bg-muted p-3">
+                  {streamedContent ? (
+                    <div className="text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:my-2 [&_ul]:pl-4 [&_li]:my-1 [&_strong]:font-semibold">
+                      {renderMarkdownContent(streamedContent)}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      소피가 와인을 고르고 있어요...
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
