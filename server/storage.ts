@@ -38,6 +38,9 @@ export interface SmartSearchFilters {
   acidity?: { min?: number; max?: number };
   body?: { min?: number; max?: number };
   tannin?: { min?: number; max?: number };
+  // 강화 데이터 태그 기반 검색 (Phase 2)
+  moodTags?: string[];   // 감성 태그 ("위로", "설렘" 등)
+  sceneTags?: string[];  // 상황 태그 ("혼술", "데이트" 등)
 }
 
 export interface WineFilters {
@@ -499,12 +502,28 @@ class DatabaseStorage implements IStorage {
       conditions.push(sql`${wines.id} IN (${wineIdsWithOccasion})`);
     }
 
+    // 강화 데이터 태그 기반 검색 (Phase 2)
+    // mood_tags 배열에 하나라도 매칭되면 포함
+    if (filters.moodTags && filters.moodTags.length > 0) {
+      const moodConditions = filters.moodTags.map(
+        (tag) => sql`${wines.moodTags} @> ARRAY[${tag}]::text[]`
+      );
+      conditions.push(or(...moodConditions)!);
+    }
+    // scene_tags 배열에 하나라도 매칭되면 포함
+    if (filters.sceneTags && filters.sceneTags.length > 0) {
+      const sceneConditions = filters.sceneTags.map(
+        (tag) => sql`${wines.sceneTags} @> ARRAY[${tag}]::text[]`
+      );
+      conditions.push(or(...sceneConditions)!);
+    }
+
     const query = db.select().from(wines);
-    
+
     if (conditions.length > 0) {
       return query.where(and(...conditions)).limit(limit);
     }
-    
+
     return query.limit(limit);
   }
 }

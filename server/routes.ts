@@ -119,7 +119,46 @@ async function analyzeQueryForFilters(userQuery: string): Promise<SmartSearchFil
       break;
     }
   }
-  
+
+  // 강화 데이터 태그 기반 매칭 (Phase 2)
+  // mood_tags: 감성 키워드 → DB mood_tags 컬럼 검색
+  const moodKeywordMap: Record<string, string> = {
+    '위로': '위로', '위안': '위로', '힘들': '위로', '슬프': '위로',
+    '설레': '설렘', '두근': '설렘', '기대': '설렘',
+    '차분': '차분함', '잔잔': '차분함', '조용': '차분함', '고요': '차분함',
+    '활기': '활기찬', '신나': '활기찬', '즐거': '활기찬',
+    '로맨틱': '로맨틱', '사랑': '로맨틱', '달달': '로맨틱',
+    '축제': '축제', '파티': '축제', '기념': '축제',
+    '편안': '편안함', '여유': '편안함', '느긋': '편안함',
+    '사색': '사색적', '생각': '사색적', '철학': '사색적',
+  };
+  const matchedMoods: string[] = [];
+  for (const [keyword, tag] of Object.entries(moodKeywordMap)) {
+    if (queryLower.includes(keyword) && !matchedMoods.includes(tag)) {
+      matchedMoods.push(tag);
+    }
+  }
+  if (matchedMoods.length > 0) filters.moodTags = matchedMoods;
+
+  // scene_tags: 상황 키워드 → DB scene_tags 컬럼 검색
+  const sceneKeywordMap: Record<string, string> = {
+    '혼자': '혼술', '혼술': '혼술', '혼자 마': '혼술',
+    '데이트': '데이트', '연인': '데이트', '커플': '데이트',
+    '비즈니스': '비즈니스디너', '업무': '비즈니스디너', '거래처': '비즈니스디너',
+    '피크닉': '야외피크닉', '야외': '야외피크닉',
+    '홈파티': '홈파티', '집들이': '홈파티',
+    '기념일': '기념일', '생일': '기념일', '결혼': '기념일',
+    '친구': '친구모임', '동료': '친구모임',
+    '비 오': '비오는날저녁', '비가 오': '비오는날저녁', '빗': '비오는날저녁',
+  };
+  const matchedScenes: string[] = [];
+  for (const [keyword, tag] of Object.entries(sceneKeywordMap)) {
+    if (queryLower.includes(keyword) && !matchedScenes.includes(tag)) {
+      matchedScenes.push(tag);
+    }
+  }
+  if (matchedScenes.length > 0) filters.sceneTags = matchedScenes;
+
   return filters;
 }
 
@@ -164,6 +203,33 @@ const SOMMELIER_BASE_PROMPT = `당신은 전문 와인 소믈리에다.
 빗소리가 들리는 창가에서 혼자 마실 때 이 향이 유독 선명해집니다.(3단계)"
 
 과도한 광고 표현이나 허위 정보는 사용하지 않는다.`;
+
+// 와인 목록을 GPT용 컨텍스트 문자열로 변환 (강화 데이터 포함)
+function buildWineContext(wines: any[]): string {
+  return wines
+    .map((w) => {
+      const base =
+        `- ${w.nameKr} (${w.id}): ${w.type || ""}, ${w.nation || ""}, ${w.varieties || ""}, ` +
+        `${w.price ? w.price.toLocaleString() + "원" : "가격미정"}, ` +
+        `단맛:${w.sweet || 0}/5 산미:${w.acidity || 0}/5 바디:${w.body || 0}/5 탄닌:${w.tannin || 0}/5`;
+
+      // 강화 데이터가 있으면 추가
+      const enriched = w.enrichedAt
+        ? [
+            w.moodTags?.length ? `  감성태그: [${w.moodTags.join(", ")}]` : "",
+            w.sceneTags?.length ? `  상황태그: [${w.sceneTags.join(", ")}]` : "",
+            w.emotionStory ? `  감성묘사: ${w.emotionStory}` : "",
+            w.salesPitch ? `  영업멘트: ${w.salesPitch}` : "",
+            w.pairingDetail ? `  페어링: ${w.pairingDetail}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : `  ${w.summary || ""}`;
+
+      return base + "\n" + enriched;
+    })
+    .join("\n\n");
+}
 
 function buildSommelierPrompt(wineContext: string): string {
   return `${SOMMELIER_BASE_PROMPT}
@@ -407,15 +473,7 @@ export async function registerRoutes(
         wines = await storage.getWinesForContext(50);
       }
       
-      const wineContext = wines
-        .map(
-          (w) =>
-            `- ${w.nameKr} (${w.id}): ${w.type || ""}, ${w.nation || ""}, ${w.varieties || ""}, ` +
-            `${w.price ? w.price.toLocaleString() + "원" : "가격미정"}, ` +
-            `단맛:${w.sweet || 0}/5 산미:${w.acidity || 0}/5 바디:${w.body || 0}/5 탄닌:${w.tannin || 0}/5, ` +
-            `${w.summary || ""}`
-        )
-        .join("\n");
+      const wineContext = buildWineContext(wines);
 
       const filterSummary = hasFilters 
         ? `\n\n[검색 조건에 맞는 와인 ${wines.length}개가 검색되었습니다]` 
@@ -516,15 +574,7 @@ export async function registerRoutes(
         wines = await storage.getWinesForContext(50);
       }
       
-      const wineContext = wines
-        .map(
-          (w) =>
-            `- ${w.nameKr} (${w.id}): ${w.type || ""}, ${w.nation || ""}, ${w.varieties || ""}, ` +
-            `${w.price ? w.price.toLocaleString() + "원" : "가격미정"}, ` +
-            `단맛:${w.sweet || 0}/5 산미:${w.acidity || 0}/5 바디:${w.body || 0}/5 탄닌:${w.tannin || 0}/5, ` +
-            `${w.summary || ""}`
-        )
-        .join("\n");
+      const wineContext = buildWineContext(wines);
 
       const filterSummary = hasFilters 
         ? `\n\n[검색 조건에 맞는 와인 ${wines.length}개가 검색되었습니다]` 
