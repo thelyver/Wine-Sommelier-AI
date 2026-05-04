@@ -414,7 +414,7 @@ export async function registerRoutes(
 
       // Stream response
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 1000,
@@ -520,7 +520,7 @@ export async function registerRoutes(
 
       // Stream response
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 1000,
