@@ -3,7 +3,15 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    // JSON 에러 응답에서 한국어 메시지만 추출
+    try {
+      const json = JSON.parse(text);
+      if (json.error) throw new Error(json.error);
+      if (json.message) throw new Error(json.message);
+    } catch (e) {
+      if (e instanceof Error && e.message !== text) throw e;
+    }
+    throw new Error(text || `오류가 발생했습니다 (${res.status})`);
   }
 }
 
